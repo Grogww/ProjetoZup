@@ -1,0 +1,221 @@
+{
+  "info": {
+    "name": "ProjetoZup",
+    "description": "API REST para gestão de infraestrutura urbana.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "projetozup-collection"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /api/health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "GET /api/auth",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Occurrences",
+      "item": [
+        {
+          "name": "GET /api/occurrences",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/occurrences",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "occurrences"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Neighborhoods",
+      "item": [
+        {
+          "name": "GET /api/neighborhoods",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/neighborhoods",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "neighborhoods"]
+            }
+          }
+        },
+        {
+          "name": "GET /api/neighborhoods/:id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/neighborhoods/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "neighborhoods", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "GET /api/categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories"]
+            }
+          }
+        },
+        {
+          "name": "GET /api/categories/:id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/categories/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories", "1"]
+            }
+          }
+        },
+        {
+          "name": "POST /api/categories",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Iluminação pública\",\n  \"description\": \"Problemas relacionados à iluminação de vias e espaços públicos\",\n  \"icon\": \"lightbulb\",\n  \"color\": \"#FFC107\",\n  \"is_active\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories"]
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/categories/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/categories/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Subcategories",
+      "item": [
+        {
+          "name": "GET /api/subcategories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/subcategories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "subcategories"]
+            }
+          }
+        },
+        {
+          "name": "GET /api/subcategories/:id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/subcategories/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "subcategories", "1"]
+            }
+          }
+        },
+        {
+          "name": "POST /api/subcategories",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category_id\": 1,\n  \"name\": \"Poste queimado\",\n  \"description\": \"Poste de iluminação com lâmpada queimada\",\n  \"icon\": \"bulb-off\",\n  \"is_active\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/subcategories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "subcategories"]
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/subcategories/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/subcategories/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "subcategories", "1"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
