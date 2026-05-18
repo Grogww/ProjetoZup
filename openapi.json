@@ -1,0 +1,631 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "ProjetoZup API",
+    "version": "1.0.0",
+    "description": "API REST para gestão de infraestrutura urbana (categorias, subcategorias, bairros e ocorrências com geolocalização).",
+    "license": { "name": "GPL-3.0" }
+  },
+  "servers": [
+    { "url": "http://localhost:3000", "description": "Local development" }
+  ],
+  "tags": [
+    { "name": "Health", "description": "Verificação de saúde da API" },
+    { "name": "Auth", "description": "Autenticação (mock)" },
+    { "name": "Categories", "description": "Categorias de ocorrências" },
+    { "name": "Subcategories", "description": "Subcategorias de ocorrências" },
+    { "name": "Neighborhoods", "description": "Bairros" },
+    { "name": "Occurrences", "description": "Registro e gestão de ocorrências urbanas" }
+  ],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Health check",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "Servidor ativo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "status": { "type": "string", "example": "ok" } }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Endpoint stub de autenticação",
+        "operationId": "getAuth",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "status": { "type": "string", "example": "endpoint auth" } }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/categories": {
+      "get": {
+        "tags": ["Categories"],
+        "summary": "Listar categorias",
+        "operationId": "listCategories",
+        "responses": {
+          "200": {
+            "description": "Lista de categorias",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Category" } }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Categories"],
+        "summary": "Criar categoria",
+        "operationId": "createCategory",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CategoryCreateInput" },
+              "example": {
+                "name": "Iluminação pública",
+                "description": "Problemas relacionados à iluminação de vias e espaços públicos",
+                "icon": "lightbulb",
+                "color": "#FFC107",
+                "is_active": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Categoria criada",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Category" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/categories/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+      "get": {
+        "tags": ["Categories"],
+        "summary": "Obter categoria por id",
+        "operationId": "getCategoryById",
+        "responses": {
+          "200": {
+            "description": "Categoria",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Category" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "tags": ["Categories"],
+        "summary": "Remover categoria",
+        "operationId": "deleteCategory",
+        "responses": {
+          "204": { "description": "Removida" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/subcategories": {
+      "get": {
+        "tags": ["Subcategories"],
+        "summary": "Listar subcategorias",
+        "operationId": "listSubcategories",
+        "responses": {
+          "200": {
+            "description": "Lista de subcategorias",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Subcategory" } }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Subcategories"],
+        "summary": "Criar subcategoria",
+        "operationId": "createSubcategory",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SubcategoryCreateInput" },
+              "example": {
+                "category_id": 1,
+                "name": "Poste queimado",
+                "description": "Poste de iluminação com lâmpada queimada",
+                "icon": "bulb-off",
+                "is_active": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Subcategoria criada",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Subcategory" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/subcategories/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+      "get": {
+        "tags": ["Subcategories"],
+        "summary": "Obter subcategoria por id",
+        "operationId": "getSubcategoryById",
+        "responses": {
+          "200": {
+            "description": "Subcategoria",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Subcategory" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "tags": ["Subcategories"],
+        "summary": "Remover subcategoria",
+        "operationId": "deleteSubcategory",
+        "responses": {
+          "204": { "description": "Removida" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/neighborhoods": {
+      "get": {
+        "tags": ["Neighborhoods"],
+        "summary": "Listar bairros",
+        "operationId": "listNeighborhoods",
+        "responses": {
+          "200": {
+            "description": "Lista de bairros",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/NeighborhoodSummary" } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/neighborhoods/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+      "get": {
+        "tags": ["Neighborhoods"],
+        "summary": "Obter bairro por id",
+        "operationId": "getNeighborhoodById",
+        "responses": {
+          "200": {
+            "description": "Bairro com geometria",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/NeighborhoodDetail" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/occurrences": {
+      "get": {
+        "tags": ["Occurrences"],
+        "summary": "Listar ocorrências com filtros (RF12)",
+        "operationId": "listOccurrences",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": { "$ref": "#/components/schemas/OccurrenceStatus" }
+          },
+          { "name": "category_id", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1 } },
+          { "name": "subcategory_id", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1 } },
+          { "name": "neighborhood_id", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1 } },
+          { "name": "author_id", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1 } },
+          { "name": "assigned_organization_id", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1 } },
+          { "name": "limit", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1, "maximum": 200, "default": 20 } },
+          { "name": "offset", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 0, "default": 0 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de ocorrências",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Occurrence" } }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      },
+      "post": {
+        "tags": ["Occurrences"],
+        "summary": "Registrar ocorrência com geolocalização (RF11)",
+        "operationId": "createOccurrence",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/OccurrenceCreateInput" },
+              "example": {
+                "title": "Poste com lâmpada queimada",
+                "description": "O poste em frente ao número 123 está sem iluminação há três dias.",
+                "latitude": -29.6914,
+                "longitude": -53.8008,
+                "address": "Rua Exemplo, 123",
+                "category_id": 1,
+                "subcategory_id": 1,
+                "neighborhood_id": 1
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Ocorrência criada",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Occurrence" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": {
+            "description": "Conflito — duplicata em 500m",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/OccurrenceDuplicateError" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/occurrences/nearby": {
+      "get": {
+        "tags": ["Occurrences"],
+        "summary": "Consultar ocorrências próximas — antiduplicidade 500m (RF16)",
+        "operationId": "listNearbyOccurrences",
+        "parameters": [
+          {
+            "name": "lat",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "number", "format": "double", "minimum": -90, "maximum": 90 },
+            "example": -29.6914
+          },
+          {
+            "name": "lng",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "number", "format": "double", "minimum": -180, "maximum": 180 },
+            "example": -53.8008
+          },
+          {
+            "name": "radius",
+            "in": "query",
+            "required": false,
+            "description": "Raio em metros (default 500, máx 50000)",
+            "schema": { "type": "number", "minimum": 1, "maximum": 50000, "default": 500 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ocorrências dentro do raio, ordenadas por distância",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/OccurrenceNearby" } }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/api/occurrences/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+      "get": {
+        "tags": ["Occurrences"],
+        "summary": "Visualizar detalhes de uma ocorrência (RF13)",
+        "operationId": "getOccurrenceById",
+        "responses": {
+          "200": {
+            "description": "Ocorrência",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Occurrence" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "delete": {
+        "tags": ["Occurrences"],
+        "summary": "Remover ocorrência do sistema (RF15)",
+        "operationId": "deleteOccurrence",
+        "responses": {
+          "204": { "description": "Removida" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/occurrences/{id}/status": {
+      "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+      "patch": {
+        "tags": ["Occurrences"],
+        "summary": "Atualizar status de ocorrência (RF14)",
+        "operationId": "updateOccurrenceStatus",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/OccurrenceStatusUpdateInput" },
+              "example": { "status": "in_progress" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ocorrência atualizada",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Occurrence" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "IdPath": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "integer", "minimum": 1 },
+        "example": 1
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Requisição inválida",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "Unauthorized": {
+        "description": "Não autenticado",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "NotFound": {
+        "description": "Recurso não encontrado",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "Conflict": {
+        "description": "Conflito de estado",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": { "type": "string" },
+          "details": { "type": "object", "additionalProperties": true, "nullable": true }
+        }
+      },
+      "OccurrenceDuplicateError": {
+        "type": "object",
+        "required": ["error", "details"],
+        "properties": {
+          "error": { "type": "string", "example": "A similar open occurrence already exists within 500m" },
+          "details": {
+            "type": "object",
+            "properties": {
+              "duplicate_id": { "type": "integer" },
+              "distance_m": { "type": "number" }
+            }
+          }
+        }
+      },
+      "GeoJSONPoint": {
+        "type": "object",
+        "required": ["type", "coordinates"],
+        "properties": {
+          "type": { "type": "string", "enum": ["Point"] },
+          "coordinates": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": { "type": "number" },
+            "description": "[longitude, latitude]"
+          }
+        },
+        "example": { "type": "Point", "coordinates": [-53.8008, -29.6914] }
+      },
+      "GeoJSONGeometry": {
+        "type": "object",
+        "description": "Qualquer geometria GeoJSON (Polygon, MultiPolygon, etc.)",
+        "required": ["type", "coordinates"],
+        "properties": {
+          "type": { "type": "string" },
+          "coordinates": {}
+        }
+      },
+      "Category": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string", "maxLength": 100 },
+          "description": { "type": "string", "nullable": true },
+          "icon": { "type": "string", "maxLength": 50, "nullable": true },
+          "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$", "nullable": true },
+          "is_active": { "type": "boolean" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CategoryCreateInput": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string", "maxLength": 100 },
+          "description": { "type": "string" },
+          "icon": { "type": "string", "maxLength": 50 },
+          "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+          "is_active": { "type": "boolean", "default": true }
+        }
+      },
+      "Subcategory": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "category_id": { "type": "integer" },
+          "name": { "type": "string", "maxLength": 100 },
+          "description": { "type": "string", "nullable": true },
+          "icon": { "type": "string", "maxLength": 50, "nullable": true },
+          "is_active": { "type": "boolean" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "SubcategoryCreateInput": {
+        "type": "object",
+        "required": ["category_id", "name"],
+        "properties": {
+          "category_id": { "type": "integer", "minimum": 1 },
+          "name": { "type": "string", "maxLength": 100 },
+          "description": { "type": "string" },
+          "icon": { "type": "string", "maxLength": 50 },
+          "is_active": { "type": "boolean", "default": true }
+        }
+      },
+      "NeighborhoodSummary": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string" },
+          "population_estimate": { "type": "integer", "nullable": true }
+        }
+      },
+      "NeighborhoodDetail": {
+        "allOf": [
+          { "$ref": "#/components/schemas/NeighborhoodSummary" },
+          {
+            "type": "object",
+            "properties": {
+              "boundary": { "$ref": "#/components/schemas/GeoJSONGeometry" },
+              "center_point": { "$ref": "#/components/schemas/GeoJSONPoint" },
+              "created_at": { "type": "string", "format": "date-time" },
+              "updated_at": { "type": "string", "format": "date-time" }
+            }
+          }
+        ]
+      },
+      "OccurrenceStatus": {
+        "type": "string",
+        "enum": ["pending", "in_progress", "resolved", "rejected", "closed"]
+      },
+      "Occurrence": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "title": { "type": "string", "maxLength": 200 },
+          "description": { "type": "string" },
+          "location": { "$ref": "#/components/schemas/GeoJSONPoint" },
+          "address": { "type": "string", "nullable": true },
+          "category_id": { "type": "integer" },
+          "subcategory_id": { "type": "integer", "nullable": true },
+          "neighborhood_id": { "type": "integer", "nullable": true },
+          "author_id": { "type": "integer" },
+          "assigned_organization_id": { "type": "integer", "nullable": true },
+          "status": { "$ref": "#/components/schemas/OccurrenceStatus" },
+          "upvote_count": { "type": "integer" },
+          "downvote_count": { "type": "integer" },
+          "score": { "type": "integer" },
+          "reopen_count": { "type": "integer" },
+          "parent_occurrence_id": { "type": "integer", "nullable": true },
+          "resolved_at": { "type": "string", "format": "date-time", "nullable": true },
+          "closed_at": { "type": "string", "format": "date-time", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "OccurrenceNearby": {
+        "allOf": [
+          { "$ref": "#/components/schemas/Occurrence" },
+          {
+            "type": "object",
+            "properties": {
+              "distance_m": { "type": "number", "description": "Distância em metros do ponto consultado" }
+            }
+          }
+        ]
+      },
+      "OccurrenceCreateInput": {
+        "type": "object",
+        "required": ["title", "description", "latitude", "longitude", "category_id"],
+        "properties": {
+          "title": { "type": "string", "maxLength": 200 },
+          "description": { "type": "string" },
+          "latitude": { "type": "number", "format": "double", "minimum": -90, "maximum": 90 },
+          "longitude": { "type": "number", "format": "double", "minimum": -180, "maximum": 180 },
+          "address": { "type": "string" },
+          "category_id": { "type": "integer", "minimum": 1 },
+          "subcategory_id": { "type": "integer", "minimum": 1, "nullable": true },
+          "neighborhood_id": { "type": "integer", "minimum": 1, "nullable": true },
+          "assigned_organization_id": { "type": "integer", "minimum": 1, "nullable": true },
+          "parent_occurrence_id": { "type": "integer", "minimum": 1, "nullable": true },
+          "status": { "$ref": "#/components/schemas/OccurrenceStatus" }
+        }
+      },
+      "OccurrenceStatusUpdateInput": {
+        "type": "object",
+        "required": ["status"],
+        "properties": {
+          "status": { "$ref": "#/components/schemas/OccurrenceStatus" }
+        }
+      }
+    }
+  }
+}
