@@ -1,14 +1,14 @@
 const { Router } = require('express');
 const occurrencesController = require('../controllers/occurrencesController');
-const mockAuth = require('../middlewares/mockAuth');
+const auth = require('../middlewares/auth');
 
 const router = Router();
 
 router.get('/occurrences/nearby', occurrencesController.nearby);
 router.get('/occurrences', occurrencesController.list);
 router.get('/occurrences/:id', occurrencesController.getById);
-router.post('/occurrences', mockAuth, occurrencesController.create);
-router.patch('/occurrences/:id/status', mockAuth, occurrencesController.updateStatus);
-router.delete('/occurrences/:id', mockAuth, occurrencesController.remove);
+router.post('/occurrences', auth, occurrencesController.create);
+router.patch('/occurrences/:id/status', auth, occurrencesController.updateStatus);
+router.delete('/occurrences/:id', auth, occurrencesController.remove);
 
 module.exports = router;
