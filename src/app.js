@@ -5,6 +5,7 @@ const occurrenceRoutes = require('./routes/occurrenceRoutes');
 const neighborhoodsRoutes = require('./routes/neighborhoods');
 const categoriesRoutes = require('./routes/categories');
 const subcategoriesRoutes = require('./routes/subcategories');
+const usersRoutes = require('./routes/usersRoutes');
 
 
 const app = express();
@@ -22,5 +23,7 @@ app.use('/api', neighborhoodsRoutes);
 app.use('/api', categoriesRoutes);
 
 app.use('/api', subcategoriesRoutes);
+
+app.use('/api', usersRoutes);
 
 module.exports = app;
