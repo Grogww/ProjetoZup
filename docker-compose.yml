@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgis/postgis:17-3.5
+    container_name: zup_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - zup_pgdata:/var/lib/postgresql/data
+      - ./db/_CreateExtensionPostGIS.sql:/docker-entrypoint-initdb.d/01_postgis.sql:ro
+      - ./db/restore.sh:/docker-entrypoint-initdb.d/02_restore.sh:ro
+      - ./db/init:/init:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: zup_api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+    ports:
+      - "${PORT}:${PORT}"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  zup_pgdata:
