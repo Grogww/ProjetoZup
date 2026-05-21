@@ -11,7 +11,8 @@
   ],
   "tags": [
     { "name": "Health", "description": "Verificação de saúde da API" },
-    { "name": "Auth", "description": "Autenticação (mock)" },
+    { "name": "Auth", "description": "Autenticação (registro, login, refresh de tokens JWT)" },
+    { "name": "Users", "description": "Gerenciamento de usuários" },
     { "name": "Categories", "description": "Categorias de ocorrências" },
     { "name": "Subcategories", "description": "Subcategorias de ocorrências" },
     { "name": "Neighborhoods", "description": "Bairros" },
@@ -38,23 +39,209 @@
         }
       }
     },
-    "/api/auth": {
-      "get": {
+    "/api/auth/register": {
+      "post": {
         "tags": ["Auth"],
-        "summary": "Endpoint stub de autenticação",
-        "operationId": "getAuth",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": { "status": { "type": "string", "example": "endpoint auth" } }
-                }
+        "summary": "Registrar novo usuário",
+        "operationId": "registerUser",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RegisterInput" },
+              "example": {
+                "name": "Eduardo Fritsch",
+                "email": "eduardo@example.com",
+                "password": "senhaSegura123",
+                "neighborhood_id": 1
               }
             }
           }
+        },
+        "responses": {
+          "201": {
+            "description": "Usuário criado",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/User" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Autenticar usuário e emitir tokens",
+        "operationId": "loginUser",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoginInput" },
+              "example": {
+                "email": "eduardo@example.com",
+                "password": "senhaSegura123"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sessão criada",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthSession" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/auth/refresh": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Renovar tokens a partir do refresh token",
+        "operationId": "refreshSession",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RefreshInput" },
+              "example": {
+                "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6..."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tokens renovados",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/AuthSession" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/users/me": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Visualizar perfil próprio (RF06)",
+        "operationId": "getMyProfile",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Perfil do usuário autenticado",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/User" } }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "patch": {
+        "tags": ["Users"],
+        "summary": "Atualizar dados do próprio perfil (RF07)",
+        "operationId": "updateMyProfile",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UserUpdateInput" },
+              "example": {
+                "name": "Eduardo F. Silva",
+                "avatar_url": "https://cdn.example.com/avatars/eduardo.png"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Perfil atualizado",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/User" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/users": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Listar todos os usuários (RF08) — admin",
+        "operationId": "listUsers",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Lista de usuários",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/User" } }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/users/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+      "get": {
+        "tags": ["Users"],
+        "summary": "Consultar usuário por id (RF09) — admin",
+        "operationId": "getUserById",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Usuário",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/User" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/users/{id}/role": {
+      "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+      "patch": {
+        "tags": ["Users"],
+        "summary": "Alterar papel (role) de usuário (RF10) — admin",
+        "operationId": "updateUserRole",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UserRoleUpdateInput" },
+              "example": { "role": "agent" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Usuário atualizado",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/User" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
         }
       }
     },
@@ -282,6 +469,7 @@
         "tags": ["Occurrences"],
         "summary": "Registrar ocorrência com geolocalização (RF11)",
         "operationId": "createOccurrence",
+        "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -381,9 +569,11 @@
         "tags": ["Occurrences"],
         "summary": "Remover ocorrência do sistema (RF15)",
         "operationId": "deleteOccurrence",
+        "security": [{ "bearerAuth": [] }],
         "responses": {
           "204": { "description": "Removida" },
           "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
           "404": { "$ref": "#/components/responses/NotFound" },
           "409": { "$ref": "#/components/responses/Conflict" }
         }
@@ -395,6 +585,7 @@
         "tags": ["Occurrences"],
         "summary": "Atualizar status de ocorrência (RF14)",
         "operationId": "updateOccurrenceStatus",
+        "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -412,12 +603,21 @@
             }
           },
           "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
           "404": { "$ref": "#/components/responses/NotFound" }
         }
       }
     }
   },
   "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Token JWT emitido por /api/auth/login ou /api/auth/refresh. Use o header `Authorization: Bearer <access_token>`."
+      }
+    },
     "parameters": {
       "IdPath": {
         "name": "id",
@@ -433,7 +633,11 @@
         "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
       },
       "Unauthorized": {
-        "description": "Não autenticado",
+        "description": "Não autenticado ou token inválido/expirado",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "Forbidden": {
+        "description": "Usuário autenticado sem permissão para o recurso",
         "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
       },
       "NotFound": {
@@ -452,6 +656,81 @@
         "properties": {
           "error": { "type": "string" },
           "details": { "type": "object", "additionalProperties": true, "nullable": true }
+        }
+      },
+      "UserRole": {
+        "type": "string",
+        "enum": ["citizen", "agent", "admin"],
+        "description": "Papel do usuário no sistema"
+      },
+      "User": {
+        "type": "object",
+        "description": "Perfil público do usuário (campos sensíveis omitidos: password_hash, refresh_token, reset_token).",
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string", "maxLength": 150 },
+          "email": { "type": "string", "format": "email", "maxLength": 255 },
+          "role": { "$ref": "#/components/schemas/UserRole" },
+          "avatar_url": { "type": "string", "maxLength": 500, "nullable": true },
+          "neighborhood_id": { "type": "integer", "nullable": true },
+          "is_active": { "type": "boolean" },
+          "email_verified_at": { "type": "string", "format": "date-time", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "RegisterInput": {
+        "type": "object",
+        "required": ["name", "email", "password"],
+        "properties": {
+          "name": { "type": "string", "maxLength": 150 },
+          "email": { "type": "string", "format": "email", "maxLength": 255 },
+          "password": { "type": "string", "minLength": 8 },
+          "neighborhood_id": { "type": "integer", "minimum": 1, "nullable": true }
+        }
+      },
+      "LoginInput": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": { "type": "string", "format": "email" },
+          "password": { "type": "string" }
+        }
+      },
+      "RefreshInput": {
+        "type": "object",
+        "required": ["refresh_token"],
+        "properties": {
+          "refresh_token": { "type": "string" }
+        }
+      },
+      "AuthSession": {
+        "type": "object",
+        "required": ["user", "access_token", "refresh_token", "token_type", "expires_in"],
+        "properties": {
+          "user": { "$ref": "#/components/schemas/User" },
+          "access_token": { "type": "string", "description": "JWT de acesso. Enviar como `Authorization: Bearer <token>`." },
+          "refresh_token": { "type": "string", "description": "JWT usado em /api/auth/refresh para emitir um novo access_token." },
+          "token_type": { "type": "string", "example": "Bearer" },
+          "expires_in": { "type": "string", "description": "Duração do access_token (formato ms/zeit, ex.: '24h').", "example": "24h" }
+        }
+      },
+      "UserUpdateInput": {
+        "type": "object",
+        "description": "Patch parcial do próprio perfil. Todos os campos são opcionais; apenas os enviados são alterados. Não permite alterar role, is_active ou refresh_token.",
+        "properties": {
+          "name": { "type": "string", "maxLength": 150 },
+          "email": { "type": "string", "format": "email", "maxLength": 255 },
+          "password": { "type": "string", "minLength": 8 },
+          "avatar_url": { "type": "string", "maxLength": 500, "nullable": true },
+          "neighborhood_id": { "type": "integer", "minimum": 1, "nullable": true }
+        }
+      },
+      "UserRoleUpdateInput": {
+        "type": "object",
+        "required": ["role"],
+        "properties": {
+          "role": { "$ref": "#/components/schemas/UserRole" }
         }
       },
       "OccurrenceDuplicateError": {
