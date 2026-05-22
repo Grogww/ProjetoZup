@@ -2,6 +2,7 @@ const express = require('express');
 const healthRoutes = require('./routes/healthRoutes');
 const authRoutes = require('./routes/authRoutes');
 const occurrenceRoutes = require('./routes/occurrenceRoutes');
+const evaluationRoutes = require('./routes/evaluationRoutes');
 const neighborhoodsRoutes = require('./routes/neighborhoods');
 const categoriesRoutes = require('./routes/categories');
 const subcategoriesRoutes = require('./routes/subcategories');
@@ -17,6 +18,8 @@ app.use('/api', healthRoutes);
 app.use('/api', authRoutes);
 
 app.use('/api', occurrenceRoutes);
+
+app.use('/api', evaluationRoutes);
 
 app.use('/api', neighborhoodsRoutes);
 

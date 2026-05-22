@@ -105,7 +105,8 @@ const getById = async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid id' });
     }
 
-    const occurrence = await occurrencesService.getOccurrenceById(id);
+    const userId = req.user && Number.isInteger(req.user.id) ? req.user.id : null;
+    const occurrence = await occurrencesService.getOccurrenceById(id, { userId });
     if (!occurrence) {
       return res.status(404).json({ error: 'Occurrence not found' });
     }

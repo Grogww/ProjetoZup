@@ -2,6 +2,7 @@ const occurrencesModel = require('../models/occurrencesModel');
 const categoriesModel = require('../models/categoriesModel');
 const subcategoriesModel = require('../models/subcategoriesModel');
 const neighborhoodsModel = require('../models/neighborhoodsModel');
+const evaluationsService = require('./evaluationsService');
 
 const ANTIDUPLICITY_RADIUS_M = 500;
 
@@ -9,8 +10,15 @@ const listOccurrences = async (filters) => {
   return occurrencesModel.findAll(filters);
 };
 
-const getOccurrenceById = async (id) => {
-  return occurrencesModel.findById(id);
+const getOccurrenceById = async (id, { userId } = {}) => {
+  const occurrence = await occurrencesModel.findById(id);
+  if (!occurrence) return null;
+
+  const voted_user = userId
+    ? await evaluationsService.getUserVote(userId, id)
+    : null;
+
+  return { ...occurrence, voted_user };
 };
 
 const listNearbyOccurrences = async ({ latitude, longitude, radius_m }) => {
