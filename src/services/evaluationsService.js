@@ -1,7 +1,7 @@
 const pool = require('../config/database');
 const evaluationsModel = require('../models/evaluationsModel');
 
-const VOTE_TYPES = ['upvote', 'downvote'];
+const VOTE_TYPES = ['up', 'down'];
 
 const notFound = (msg) => {
   const err = new Error(msg);
@@ -30,8 +30,8 @@ const recomputeOccurrenceCounts = async (client, occurrence_id) => {
             updated_at = now()
        FROM (
               SELECT
-                COUNT(*) FILTER (WHERE vote_type = 'upvote')   AS upvotes,
-                COUNT(*) FILTER (WHERE vote_type = 'downvote') AS downvotes
+                COUNT(*) FILTER (WHERE vote_type = 'up')   AS upvotes,
+                COUNT(*) FILTER (WHERE vote_type = 'down') AS downvotes
                 FROM evaluations
                WHERE occurrence_id = $1
             ) AS stats

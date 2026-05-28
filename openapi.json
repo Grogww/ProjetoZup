@@ -995,7 +995,7 @@
       },
       "EvaluationVoteType": {
         "type": "string",
-        "enum": ["upvote", "downvote"],
+        "enum": ["up", "down"],
         "description": "Tipo do voto registrado pelo usuário em uma ocorrência."
       },
       "Evaluation": {

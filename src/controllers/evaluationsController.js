@@ -34,7 +34,7 @@ const upvote = async (req, res, next) => {
     const evaluation = await evaluationsService.voteOnOccurrence({
       user_id: user.id,
       occurrence_id,
-      vote_type: 'upvote',
+      vote_type: 'up',
     });
 
     res.status(200).json(evaluation);
@@ -56,7 +56,7 @@ const downvote = async (req, res, next) => {
     const evaluation = await evaluationsService.voteOnOccurrence({
       user_id: user.id,
       occurrence_id,
-      vote_type: 'downvote',
+      vote_type: 'down',
     });
 
     res.status(200).json(evaluation);
