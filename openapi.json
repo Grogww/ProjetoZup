@@ -16,7 +16,8 @@
     { "name": "Categories", "description": "Categorias de ocorrências" },
     { "name": "Subcategories", "description": "Subcategorias de ocorrências" },
     { "name": "Neighborhoods", "description": "Bairros" },
-    { "name": "Occurrences", "description": "Registro e gestão de ocorrências urbanas" }
+    { "name": "Occurrences", "description": "Registro e gestão de ocorrências urbanas" },
+    { "name": "Evaluations", "description": "Avaliações de ocorrências (upvote/downvote)" }
   ],
   "paths": {
     "/api/health": {
@@ -607,6 +608,93 @@
           "404": { "$ref": "#/components/responses/NotFound" }
         }
       }
+    },
+    "/api/occurrences/{id}/evaluations": {
+      "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+      "get": {
+        "tags": ["Evaluations"],
+        "summary": "Listar avaliações de uma ocorrência",
+        "operationId": "listOccurrenceEvaluations",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Lista de avaliações (upvotes e downvotes), ordenadas por data de criação (mais recentes primeiro).",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Evaluation" } }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/occurrences/{id}/upvote": {
+      "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+      "post": {
+        "tags": ["Evaluations"],
+        "summary": "Registrar upvote na ocorrência",
+        "description": "Cria um upvote do usuário autenticado para a ocorrência. Se o usuário já tinha voto registrado (upvote ou downvote), o voto é atualizado. Ocorrências com status `closed` não aceitam votos.",
+        "operationId": "upvoteOccurrence",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Avaliação criada ou atualizada",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Evaluation" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": {
+            "description": "Ocorrência fechada — votos não são permitidos",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      }
+    },
+    "/api/occurrences/{id}/downvote": {
+      "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+      "post": {
+        "tags": ["Evaluations"],
+        "summary": "Registrar downvote na ocorrência",
+        "description": "Cria um downvote do usuário autenticado para a ocorrência. Se o usuário já tinha voto registrado (upvote ou downvote), o voto é atualizado. Ocorrências com status `closed` não aceitam votos.",
+        "operationId": "downvoteOccurrence",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Avaliação criada ou atualizada",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Evaluation" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": {
+            "description": "Ocorrência fechada — votos não são permitidos",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      }
+    },
+    "/api/occurrences/{id}/vote": {
+      "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+      "delete": {
+        "tags": ["Evaluations"],
+        "summary": "Remover voto do usuário autenticado",
+        "description": "Remove o voto (upvote ou downvote) do usuário autenticado para a ocorrência informada. Retorna 404 se o usuário não possuía voto registrado.",
+        "operationId": "removeOccurrenceVote",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "204": { "description": "Voto removido" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
     }
   },
   "components": {
@@ -903,6 +991,22 @@
         "required": ["status"],
         "properties": {
           "status": { "$ref": "#/components/schemas/OccurrenceStatus" }
+        }
+      },
+      "EvaluationVoteType": {
+        "type": "string",
+        "enum": ["upvote", "downvote"],
+        "description": "Tipo do voto registrado pelo usuário em uma ocorrência."
+      },
+      "Evaluation": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "occurrence_id": { "type": "integer" },
+          "user_id": { "type": "integer" },
+          "vote_type": { "$ref": "#/components/schemas/EvaluationVoteType" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
         }
       }
     }
