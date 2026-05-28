@@ -1,4 +1,5 @@
 const neighborhoodsModel = require('../models/neighborhoodsModel');
+const occurrencesModel = require('../models/occurrencesModel');
 
 const listNeighborhoods = async () => {
   return neighborhoodsModel.findAll();
@@ -8,4 +9,15 @@ const getNeighborhoodById = async (id) => {
   return neighborhoodsModel.findById(id);
 };
 
-module.exports = { listNeighborhoods, getNeighborhoodById };
+const getNeighborhoodOccurrences = async (id) => {
+  const neighborhood = await neighborhoodsModel.findById(id);
+  if (!neighborhood) return null;
+
+  return occurrencesModel.findAll({ neighborhood_id: id });
+};
+
+module.exports = {
+  listNeighborhoods,
+  getNeighborhoodById,
+  getNeighborhoodOccurrences,
+};

@@ -434,6 +434,25 @@
         }
       }
     },
+    "/api/neighborhoods/{id}/occurrences": {
+      "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+      "get": {
+        "tags": ["Neighborhoods"],
+        "summary": "Listar ocorrências de um bairro",
+        "description": "Retorna todas as ocorrências do bairro informado, ordenadas por data de criação (mais recentes primeiro).",
+        "operationId": "listNeighborhoodOccurrences",
+        "responses": {
+          "200": {
+            "description": "Lista de ocorrências do bairro",
+            "content": {
+              "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Occurrence" } } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
     "/api/occurrences": {
       "get": {
         "tags": ["Occurrences"],

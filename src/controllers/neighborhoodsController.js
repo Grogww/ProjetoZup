@@ -27,4 +27,22 @@ const getById = async (req, res, next) => {
   }
 };
 
-module.exports = { list, getById };
+const listOccurrences = async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: 'Invalid id' });
+    }
+
+    const result = await neighborhoodsService.getNeighborhoodOccurrences(id);
+    if (!result) {
+      return res.status(404).json({ error: 'Neighborhood not found' });
+    }
+
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { list, getById, listOccurrences };
