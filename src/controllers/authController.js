@@ -85,4 +85,47 @@ const refresh = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, refresh };
+const FORGOT_PASSWORD_GENERIC_MESSAGE =
+  'If this email is registered, password reset instructions have been sent.';
+
+const forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body || {};
+
+    if (typeof email !== 'string' || !EMAIL_RE.test(email.trim())) {
+      return res.status(400).json({ error: 'email is required and must be valid' });
+    }
+
+    await authService.forgotPassword(email.trim().toLowerCase());
+
+    return res.status(200).json({ message: FORGOT_PASSWORD_GENERIC_MESSAGE });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const resetPassword = async (req, res, next) => {
+  try {
+    const { token, password } = req.body || {};
+
+    if (typeof token !== 'string' || token.trim().length === 0) {
+      return res.status(400).json({ error: 'token is required' });
+    }
+    if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({
+        error: `password is required and must have at least ${MIN_PASSWORD_LENGTH} characters`,
+      });
+    }
+
+    await authService.resetPassword(token.trim(), password);
+
+    return res.status(200).json({ message: 'Password updated successfully.' });
+  } catch (err) {
+    if (err.code === 'INVALID_RESET_TOKEN') {
+      return res.status(400).json({ error: err.message });
+    }
+    next(err);
+  }
+};
+
+module.exports = { register, login, refresh, forgotPassword, resetPassword };

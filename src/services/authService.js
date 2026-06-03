@@ -1,10 +1,18 @@
+const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const usersModel = require('../models/usersModel');
+const emailService = require('./emailService');
 
 const SALT_ROUNDS = Number(process.env.BCRYPT_SALT_ROUNDS) || 10;
 const ACCESS_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 const REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
+const RESET_TOKEN_BYTES = Number(process.env.RESET_TOKEN_BYTES) || 32;
+const RESET_TOKEN_EXPIRES_MINUTES =
+  Number(process.env.RESET_TOKEN_EXPIRES_MINUTES) || 30;
+
+const hashResetToken = (rawToken) =>
+  crypto.createHash('sha256').update(rawToken).digest('hex');
 
 const sanitize = (user) => {
   if (!user) return null;
@@ -122,4 +130,44 @@ const refresh = async (refreshToken) => {
   return buildSession(user);
 };
 
-module.exports = { register, login, refresh };
+const forgotPassword = async (email) => {
+  const user = await usersModel.findByEmail(email);
+  if (!user || !user.is_active) {
+    return;
+  }
+
+  const rawToken = crypto.randomBytes(RESET_TOKEN_BYTES).toString('hex');
+  const hashedToken = hashResetToken(rawToken);
+  const expiresAt = new Date(Date.now() + RESET_TOKEN_EXPIRES_MINUTES * 60 * 1000);
+
+  await usersModel.setResetToken(user.id, hashedToken, expiresAt);
+
+  try {
+    await emailService.sendPasswordResetEmail({
+      to: user.email,
+      name: user.name,
+      token: rawToken,
+      expiresInMinutes: RESET_TOKEN_EXPIRES_MINUTES,
+    });
+  } catch (err) {
+    console.error('Failed to send password reset email:', err);
+  }
+};
+
+const resetPassword = async (rawToken, newPassword) => {
+  const hashedToken = hashResetToken(rawToken);
+  const user = await usersModel.findByValidResetToken(hashedToken);
+
+  if (!user) {
+    const err = new Error('Invalid or expired reset token');
+    err.code = 'INVALID_RESET_TOKEN';
+    throw err;
+  }
+
+  const password_hash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+  const updated = await usersModel.applyPasswordReset(user.id, password_hash);
+
+  return sanitize(updated);
+};
+
+module.exports = { register, login, refresh, forgotPassword, resetPassword };

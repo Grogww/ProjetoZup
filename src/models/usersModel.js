@@ -103,6 +103,45 @@ const updateRefreshToken = async (id, refreshToken) => {
   );
 };
 
+const setResetToken = async (id, hashedToken, expiresAt) => {
+  await pool.query(
+    `UPDATE users
+        SET reset_token = $2,
+            reset_token_expires_at = $3,
+            updated_at = now()
+      WHERE id = $1`,
+    [id, hashedToken, expiresAt]
+  );
+};
+
+const findByValidResetToken = async (hashedToken) => {
+  const { rows } = await pool.query(
+    `SELECT ${ALL_COLUMNS}
+       FROM users
+      WHERE reset_token = $1
+        AND reset_token_expires_at IS NOT NULL
+        AND reset_token_expires_at > now()
+        AND is_active = true`,
+    [hashedToken]
+  );
+  return rows[0] || null;
+};
+
+const applyPasswordReset = async (id, passwordHash) => {
+  const { rows } = await pool.query(
+    `UPDATE users
+        SET password_hash = $2,
+            reset_token = NULL,
+            reset_token_expires_at = NULL,
+            refresh_token = NULL,
+            updated_at = now()
+      WHERE id = $1
+      RETURNING ${ALL_COLUMNS}`,
+    [id, passwordHash]
+  );
+  return rows[0] || null;
+};
+
 module.exports = {
   findAll,
   findById,
@@ -111,4 +150,7 @@ module.exports = {
   update,
   updateRole,
   updateRefreshToken,
+  setResetToken,
+  findByValidResetToken,
+  applyPasswordReset,
 };

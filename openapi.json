@@ -128,6 +128,83 @@
         }
       }
     },
+    "/api/auth/forgot-password": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Solicitar redefinição de senha",
+        "description": "Gera um token de redefinição e envia um e-mail com o link de recuperação. Por segurança, sempre retorna 200 com uma mensagem genérica, independentemente de o e-mail estar ou não cadastrado (evita enumeração de usuários). Endpoint sujeito a rate limit.",
+        "operationId": "forgotPassword",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ForgotPasswordInput" },
+              "example": { "email": "eduardo@example.com" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Mensagem genérica (token enviado por e-mail se o usuário existir)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "If this email is registered, password reset instructions have been sent."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "429": { "$ref": "#/components/responses/TooManyRequests" }
+        }
+      }
+    },
+    "/api/auth/reset-password": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Redefinir senha com token",
+        "description": "Recebe o token enviado por e-mail e a nova senha. O token é validado contra o hash armazenado e sua expiração. Endpoint sujeito a rate limit.",
+        "operationId": "resetPassword",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ResetPasswordInput" },
+              "example": {
+                "token": "a1b2c3d4e5f6...",
+                "password": "novaSenhaSegura123"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Senha atualizada com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string", "example": "Password updated successfully." }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Requisição inválida ou token inválido/expirado",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "429": { "$ref": "#/components/responses/TooManyRequests" }
+        }
+      }
+    },
     "/api/users/me": {
       "get": {
         "tags": ["Users"],
@@ -754,6 +831,10 @@
       "Conflict": {
         "description": "Conflito de estado",
         "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "TooManyRequests": {
+        "description": "Limite de requisições excedido (rate limit)",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
       }
     },
     "schemas": {
@@ -809,6 +890,21 @@
         "required": ["refresh_token"],
         "properties": {
           "refresh_token": { "type": "string" }
+        }
+      },
+      "ForgotPasswordInput": {
+        "type": "object",
+        "required": ["email"],
+        "properties": {
+          "email": { "type": "string", "format": "email" }
+        }
+      },
+      "ResetPasswordInput": {
+        "type": "object",
+        "required": ["token", "password"],
+        "properties": {
+          "token": { "type": "string", "description": "Token recebido por e-mail (parâmetro `token` da URL de redefinição)." },
+          "password": { "type": "string", "minLength": 8, "description": "Nova senha (mínimo 8 caracteres)." }
         }
       },
       "AuthSession": {
