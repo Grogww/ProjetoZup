@@ -3,6 +3,7 @@ const pool = require('../config/database');
 const occurrenceMediaModel = require('../models/occurrenceMediaModel');
 const occurrencesModel = require('../models/occurrencesModel');
 const storage = require('../config/storage');
+const { assertWithinEditWindow } = require('../utils/occurrenceEditWindow');
 
 // Autorização: somente o autor da ocorrência ou um admin podem mexer nas mídias.
 const assertCanManage = (occurrence, user) => {
@@ -32,7 +33,7 @@ const toPublic = (row) => ({
 // enquanto anexamos mídias (FOR SHARE não serializa uploads concorrentes).
 const lockOccurrence = async (client, occurrenceId) => {
   const { rows } = await client.query(
-    `SELECT id, author_id FROM occurrences WHERE id = $1 FOR SHARE`,
+    `SELECT id, author_id, created_at FROM occurrences WHERE id = $1 FOR SHARE`,
     [occurrenceId]
   );
   return rows[0] || null;
@@ -55,6 +56,7 @@ const addMedia = async ({ occurrenceId, files, user }) => {
     }
 
     assertCanManage(occurrence, user);
+    assertWithinEditWindow(occurrence);
 
     const created = [];
     for (const file of files) {
@@ -103,6 +105,7 @@ const removeMedia = async ({ occurrenceId, mediaId, user }) => {
   }
 
   assertCanManage(occurrence, user);
+  assertWithinEditWindow(occurrence);
 
   await occurrenceMediaModel.remove(mediaId);
   await fs.promises

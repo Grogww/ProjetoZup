@@ -664,6 +664,40 @@
           "404": { "$ref": "#/components/responses/NotFound" }
         }
       },
+      "patch": {
+        "tags": ["Occurrences"],
+        "summary": "Editar campos de uma ocorrência",
+        "description": "Edita título, descrição, endereço e/ou localização de uma ocorrência. Permitido apenas para o autor ou um admin e somente dentro de 24h a partir da criação (`created_at`); após esse prazo retorna 403. `latitude` e `longitude` devem ser enviadas juntas.",
+        "operationId": "updateOccurrence",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/OccurrenceUpdateInput" },
+              "example": {
+                "title": "Buraco na via (atualizado)",
+                "description": "O buraco aumentou desde o registro inicial."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ocorrência atualizada",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Occurrence" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": {
+            "description": "Sem permissão para editar (não é autor/admin) ou janela de edição de 24h expirada.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
       "delete": {
         "tags": ["Occurrences"],
         "summary": "Remover ocorrência do sistema (RF15)",
@@ -788,7 +822,7 @@
       "post": {
         "tags": ["Media"],
         "summary": "Anexar foto/mídia a uma ocorrência (RF18)",
-        "description": "Faz upload de 1..N arquivos (multipart/form-data, campo `media`) e os anexa à ocorrência. Apenas o autor da ocorrência ou um admin podem anexar mídias. Os arquivos são validados por mimetype (allowlist) e tamanho máximo. O nome do arquivo no disco é gerado pelo servidor. Em caso de falha ao gravar no banco, os arquivos já salvos são removidos do disco.",
+        "description": "Faz upload de 1..N arquivos (multipart/form-data, campo `media`) e os anexa à ocorrência. Apenas o autor da ocorrência ou um admin podem anexar mídias, e somente dentro de 24h a partir da criação da ocorrência (após esse prazo retorna 403). Os arquivos são validados por mimetype (allowlist) e tamanho máximo. O nome do arquivo no disco é gerado pelo servidor. Em caso de falha ao gravar no banco, os arquivos já salvos são removidos do disco.",
         "operationId": "addOccurrenceMedia",
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
@@ -850,7 +884,7 @@
       "delete": {
         "tags": ["Media"],
         "summary": "Remover uma mídia de uma ocorrência",
-        "description": "Remove o registro da mídia e o respectivo arquivo do disco. Apenas o autor da ocorrência ou um admin podem remover. Retorna 404 se a mídia não existir ou não pertencer à ocorrência informada.",
+        "description": "Remove o registro da mídia e o respectivo arquivo do disco. Apenas o autor da ocorrência ou um admin podem remover, e somente dentro de 24h a partir da criação da ocorrência (após esse prazo retorna 403). Retorna 404 se a mídia não existir ou não pertencer à ocorrência informada.",
         "operationId": "deleteOccurrenceMedia",
         "security": [{ "bearerAuth": [] }],
         "responses": {
@@ -1296,6 +1330,17 @@
         "required": ["status"],
         "properties": {
           "status": { "$ref": "#/components/schemas/OccurrenceStatus" }
+        }
+      },
+      "OccurrenceUpdateInput": {
+        "type": "object",
+        "description": "Patch parcial dos campos editáveis da ocorrência. Todos os campos são opcionais, mas ao menos um deve ser enviado. latitude e longitude devem ser enviados juntos. Edição permitida apenas dentro de 24h da criação.",
+        "properties": {
+          "title": { "type": "string", "maxLength": 200 },
+          "description": { "type": "string" },
+          "address": { "type": "string", "nullable": true },
+          "latitude": { "type": "number", "format": "double", "minimum": -90, "maximum": 90 },
+          "longitude": { "type": "number", "format": "double", "minimum": -180, "maximum": 180 }
         }
       },
       "OccurrenceReopenInput": {

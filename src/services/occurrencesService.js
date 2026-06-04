@@ -6,6 +6,7 @@ const subcategoriesModel = require('../models/subcategoriesModel');
 const neighborhoodsModel = require('../models/neighborhoodsModel');
 const evaluationsService = require('./evaluationsService');
 const occurrenceMediaService = require('./occurrenceMediaService');
+const { assertWithinEditWindow } = require('../utils/occurrenceEditWindow');
 
 const ANTIDUPLICITY_RADIUS_M = 500;
 
@@ -102,6 +103,29 @@ const updateOccurrenceStatus = async (id, status) => {
   const existing = await occurrencesModel.findById(id);
   if (!existing) return null;
   return occurrencesModel.updateStatus(id, status);
+};
+
+// Autorização da edição de campos: somente o autor da ocorrência ou um admin.
+const assertCanEdit = (occurrence, user) => {
+  const isAuthor = user && occurrence.author_id === user.id;
+  const isAdmin = user && user.role === 'admin';
+  if (!isAuthor && !isAdmin) {
+    const err = new Error('Only the occurrence author or an admin can edit it');
+    err.code = 'FORBIDDEN';
+    throw err;
+  }
+};
+
+// Edição dos campos da ocorrência, permitida apenas dentro da janela de 24h a
+// partir da criação (ver occurrenceEditWindow). Retorna null se não existir.
+const updateOccurrence = async (id, patch, { user } = {}) => {
+  const existing = await occurrencesModel.findById(id);
+  if (!existing) return null;
+
+  assertCanEdit(existing, user);
+  assertWithinEditWindow(existing);
+
+  return occurrencesModel.update(id, patch);
 };
 
 const deleteOccurrence = async (id) => {
@@ -256,6 +280,7 @@ module.exports = {
   listNearbyOccurrences,
   createOccurrence,
   updateOccurrenceStatus,
+  updateOccurrence,
   deleteOccurrence,
   reopenOccurrence,
   getReopenHistory,

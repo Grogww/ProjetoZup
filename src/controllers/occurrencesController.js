@@ -231,6 +231,83 @@ const updateStatus = async (req, res, next) => {
   }
 };
 
+const update = async (req, res, next) => {
+  try {
+    const id = parsePositiveInt(req.params.id);
+    if (id === null) {
+      return res.status(400).json({ error: 'Invalid id' });
+    }
+
+    if (!req.user || !Number.isInteger(req.user.id)) {
+      return res.status(401).json({ error: 'Authenticated user required' });
+    }
+
+    const { title, description, address, latitude, longitude } = req.body || {};
+    const patch = {};
+
+    if (title !== undefined) {
+      if (typeof title !== 'string' || title.trim().length === 0) {
+        return res.status(400).json({ error: 'title must be a non-empty string' });
+      }
+      if (title.length > 200) {
+        return res.status(400).json({ error: 'title must be at most 200 characters' });
+      }
+      patch.title = title.trim();
+    }
+
+    if (description !== undefined) {
+      if (typeof description !== 'string' || description.trim().length === 0) {
+        return res.status(400).json({ error: 'description must be a non-empty string' });
+      }
+      patch.description = description.trim();
+    }
+
+    if (address !== undefined) {
+      if (address === null) {
+        patch.address = null;
+      } else if (typeof address !== 'string') {
+        return res.status(400).json({ error: 'address must be a string' });
+      } else {
+        patch.address = address.trim();
+      }
+    }
+
+    // latitude e longitude andam juntas: ou ambas, ou nenhuma.
+    if (latitude !== undefined || longitude !== undefined) {
+      const lat = parseLatitude(latitude);
+      const lng = parseLongitude(longitude);
+      if (lat === null) {
+        return res.status(400).json({ error: 'latitude must be between -90 and 90' });
+      }
+      if (lng === null) {
+        return res.status(400).json({ error: 'longitude must be between -180 and 180' });
+      }
+      patch.latitude = lat;
+      patch.longitude = lng;
+    }
+
+    if (Object.keys(patch).length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
+
+    const occurrence = await occurrencesService.updateOccurrence(id, patch, {
+      user: req.user,
+    });
+    if (!occurrence) {
+      return res.status(404).json({ error: 'Occurrence not found' });
+    }
+    res.json(occurrence);
+  } catch (err) {
+    if (err.code === 'FORBIDDEN') {
+      return res.status(403).json({ error: err.message });
+    }
+    if (err.code === 'EDIT_WINDOW_EXPIRED') {
+      return res.status(403).json({ error: err.message });
+    }
+    next(err);
+  }
+};
+
 const remove = async (req, res, next) => {
   try {
     const id = parsePositiveInt(req.params.id);
@@ -283,6 +360,9 @@ const addMedia = async (req, res, next) => {
     if (err.code === 'FORBIDDEN') {
       return res.status(403).json({ error: err.message });
     }
+    if (err.code === 'EDIT_WINDOW_EXPIRED') {
+      return res.status(403).json({ error: err.message });
+    }
     next(err);
   }
 };
@@ -325,6 +405,9 @@ const removeMedia = async (req, res, next) => {
     res.status(204).send();
   } catch (err) {
     if (err.code === 'FORBIDDEN') {
+      return res.status(403).json({ error: err.message });
+    }
+    if (err.code === 'EDIT_WINDOW_EXPIRED') {
       return res.status(403).json({ error: err.message });
     }
     next(err);
@@ -434,6 +517,7 @@ module.exports = {
   getById,
   create,
   updateStatus,
+  update,
   remove,
   addMedia,
   listMedia,

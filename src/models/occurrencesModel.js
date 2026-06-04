@@ -234,6 +234,67 @@ const updateStatus = async (id, status) => {
   return rows[0] || null;
 };
 
+// Edição dos campos informados pelo autor (título, descrição, endereço e
+// localização). Aceita um patch parcial; latitude e longitude andam juntas.
+const update = async (id, patch) => {
+  const sets = [];
+  const values = [];
+  let i = 1;
+
+  if (patch.title !== undefined) {
+    sets.push(`title = $${i++}`);
+    values.push(patch.title);
+  }
+  if (patch.description !== undefined) {
+    sets.push(`description = $${i++}`);
+    values.push(patch.description);
+  }
+  if (patch.address !== undefined) {
+    sets.push(`address = $${i++}`);
+    values.push(patch.address);
+  }
+  if (patch.latitude !== undefined && patch.longitude !== undefined) {
+    sets.push(`location = ST_SetSRID(ST_MakePoint($${i++}, $${i++}), 4326)`);
+    values.push(patch.longitude, patch.latitude);
+  }
+
+  if (sets.length === 0) {
+    return findById(id);
+  }
+
+  sets.push(`updated_at = now()`);
+  values.push(id);
+
+  const { rows } = await pool.query(
+    `UPDATE occurrences
+        SET ${sets.join(', ')}
+      WHERE id = $${i}
+      RETURNING id,
+                title,
+                description,
+                ST_AsGeoJSON(location)::json AS location,
+                address,
+                category_id,
+                subcategory_id,
+                neighborhood_id,
+                author_id,
+                assigned_organization_id,
+                status,
+                upvote_count,
+                downvote_count,
+                score,
+                reopen_count,
+                parent_occurrence_id,
+                root_occurrence_id,
+                resolved_at,
+                closed_at,
+                created_at,
+                updated_at`,
+    values
+  );
+  return rows[0] || null;
+};
+
 const remove = async (id) => {
   const { rowCount } = await pool.query(
     `DELETE FROM occurrences WHERE id = $1`,
@@ -248,5 +309,6 @@ module.exports = {
   findNearby,
   create,
   updateStatus,
+  update,
   remove,
 };

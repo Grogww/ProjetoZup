@@ -11,6 +11,7 @@ router.get('/occurrences', occurrencesController.list);
 router.get('/occurrences/:id', optionalAuth, occurrencesController.getById);
 router.post('/occurrences', auth, occurrencesController.create);
 router.patch('/occurrences/:id/status', auth, occurrencesController.updateStatus);
+router.patch('/occurrences/:id', auth, occurrencesController.update);
 router.delete('/occurrences/:id', auth, occurrencesController.remove);
 
 router.get('/occurrences/:id/media', occurrencesController.listMedia);
