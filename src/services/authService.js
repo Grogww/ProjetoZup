@@ -21,6 +21,7 @@ const sanitize = (user) => {
     refresh_token,
     reset_token,
     reset_token_expires_at,
+    cpf,
     ...publicFields
   } = user;
   return publicFields;
@@ -60,11 +61,18 @@ const buildSession = async (user) => {
   };
 };
 
-const register = async ({ name, email, password, neighborhood_id }) => {
-  const existing = await usersModel.findByEmail(email);
-  if (existing) {
+const register = async ({ name, email, cpf, password, neighborhood_id }) => {
+  const existingEmail = await usersModel.findByEmail(email);
+  if (existingEmail) {
     const err = new Error('Email already registered');
     err.code = 'EMAIL_ALREADY_REGISTERED';
+    throw err;
+  }
+
+  const existingCpf = await usersModel.findByCpf(cpf);
+  if (existingCpf) {
+    const err = new Error('CPF already registered');
+    err.code = 'CPF_ALREADY_REGISTERED';
     throw err;
   }
 
@@ -73,6 +81,7 @@ const register = async ({ name, email, password, neighborhood_id }) => {
   const user = await usersModel.create({
     name,
     email,
+    cpf,
     password_hash,
     neighborhood_id,
   });
@@ -80,8 +89,8 @@ const register = async ({ name, email, password, neighborhood_id }) => {
   return sanitize(user);
 };
 
-const login = async (email, password) => {
-  const user = await usersModel.findByEmail(email);
+const login = async (cpf, password) => {
+  const user = await usersModel.findByCpf(cpf);
   if (!user || !user.is_active) {
     const err = new Error('Invalid credentials');
     err.code = 'INVALID_CREDENTIALS';

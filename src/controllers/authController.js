@@ -1,11 +1,12 @@
 const authService = require('../services/authService');
+const { normalizeCpf, isValidCpf } = require('../utils/cpf');
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
 
 const register = async (req, res, next) => {
   try {
-    const { name, email, password, neighborhood_id } = req.body || {};
+    const { name, email, cpf, password, neighborhood_id } = req.body || {};
 
     if (typeof name !== 'string' || name.trim().length === 0) {
       return res.status(400).json({ error: 'name is required' });
@@ -18,6 +19,9 @@ const register = async (req, res, next) => {
     }
     if (email.trim().length > 255) {
       return res.status(400).json({ error: 'email must be at most 255 characters' });
+    }
+    if (cpf === undefined || cpf === null || !isValidCpf(cpf)) {
+      return res.status(400).json({ error: 'cpf is required and must be a valid CPF' });
     }
     if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) {
       return res.status(400).json({
@@ -33,6 +37,7 @@ const register = async (req, res, next) => {
     const user = await authService.register({
       name: name.trim(),
       email: email.trim().toLowerCase(),
+      cpf: normalizeCpf(cpf),
       password,
       neighborhood_id: neighborhood_id ?? null,
     });
@@ -42,22 +47,25 @@ const register = async (req, res, next) => {
     if (err.code === 'EMAIL_ALREADY_REGISTERED') {
       return res.status(409).json({ error: err.message });
     }
+    if (err.code === 'CPF_ALREADY_REGISTERED') {
+      return res.status(409).json({ error: err.message });
+    }
     next(err);
   }
 };
 
 const login = async (req, res, next) => {
   try {
-    const { email, password } = req.body || {};
+    const { cpf, password } = req.body || {};
 
-    if (typeof email !== 'string' || email.trim().length === 0) {
-      return res.status(400).json({ error: 'email is required' });
+    if (cpf === undefined || cpf === null || !isValidCpf(cpf)) {
+      return res.status(400).json({ error: 'cpf is required and must be a valid CPF' });
     }
     if (typeof password !== 'string' || password.length === 0) {
       return res.status(400).json({ error: 'password is required' });
     }
 
-    const session = await authService.login(email.trim().toLowerCase(), password);
+    const session = await authService.login(normalizeCpf(cpf), password);
     res.json(session);
   } catch (err) {
     if (err.code === 'INVALID_CREDENTIALS') {

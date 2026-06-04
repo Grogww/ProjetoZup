@@ -4,6 +4,7 @@ const ALL_COLUMNS = `
   id,
   name,
   email,
+  cpf,
   password_hash,
   role,
   avatar_url,
@@ -42,12 +43,20 @@ const findByEmail = async (email) => {
   return rows[0] || null;
 };
 
-const create = async ({ name, email, password_hash, role, neighborhood_id }) => {
+const findByCpf = async (cpf) => {
   const { rows } = await pool.query(
-    `INSERT INTO users (name, email, password_hash, role, neighborhood_id)
-     VALUES ($1, $2, $3, COALESCE($4::user_role, 'citizen'::user_role), $5)
+    `SELECT ${ALL_COLUMNS} FROM users WHERE cpf = $1`,
+    [cpf]
+  );
+  return rows[0] || null;
+};
+
+const create = async ({ name, email, cpf, password_hash, role, neighborhood_id }) => {
+  const { rows } = await pool.query(
+    `INSERT INTO users (name, email, cpf, password_hash, role, neighborhood_id)
+     VALUES ($1, $2, $3, $4, COALESCE($5::user_role, 'citizen'::user_role), $6)
      RETURNING ${ALL_COLUMNS}`,
-    [name, email, password_hash, role ?? null, neighborhood_id ?? null]
+    [name, email, cpf, password_hash, role ?? null, neighborhood_id ?? null]
   );
   return rows[0];
 };
@@ -146,6 +155,7 @@ module.exports = {
   findAll,
   findById,
   findByEmail,
+  findByCpf,
   create,
   update,
   updateRole,

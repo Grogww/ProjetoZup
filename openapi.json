@@ -54,6 +54,7 @@
               "example": {
                 "name": "Eduardo Fritsch",
                 "email": "eduardo@example.com",
+                "cpf": "123.456.789-09",
                 "password": "senhaSegura123",
                 "neighborhood_id": 1
               }
@@ -83,7 +84,7 @@
             "application/json": {
               "schema": { "$ref": "#/components/schemas/LoginInput" },
               "example": {
-                "email": "eduardo@example.com",
+                "cpf": "123.456.789-09",
                 "password": "senhaSegura123"
               }
             }
@@ -1009,7 +1010,7 @@
       },
       "User": {
         "type": "object",
-        "description": "Perfil público do usuário (campos sensíveis omitidos: password_hash, refresh_token, reset_token).",
+        "description": "Perfil público do usuário (campos sensíveis omitidos: password_hash, refresh_token, reset_token, cpf).",
         "properties": {
           "id": { "type": "integer" },
           "name": { "type": "string", "maxLength": 150 },
@@ -1025,19 +1026,20 @@
       },
       "RegisterInput": {
         "type": "object",
-        "required": ["name", "email", "password"],
+        "required": ["name", "email", "cpf", "password"],
         "properties": {
           "name": { "type": "string", "maxLength": 150 },
           "email": { "type": "string", "format": "email", "maxLength": 255 },
+          "cpf": { "type": "string", "description": "CPF do usuário. Aceita com ou sem máscara; validado por formato e dígitos verificadores. Armazenado apenas com dígitos e nunca retornado pela API." },
           "password": { "type": "string", "minLength": 8 },
           "neighborhood_id": { "type": "integer", "minimum": 1, "nullable": true }
         }
       },
       "LoginInput": {
         "type": "object",
-        "required": ["email", "password"],
+        "required": ["cpf", "password"],
         "properties": {
-          "email": { "type": "string", "format": "email" },
+          "cpf": { "type": "string", "description": "CPF usado como identificador de login. Aceita com ou sem máscara." },
           "password": { "type": "string" }
         }
       },
