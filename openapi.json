@@ -729,7 +729,7 @@
       "post": {
         "tags": ["Media"],
         "summary": "Anexar foto/mídia a uma ocorrência (RF18)",
-        "description": "Faz upload de 1..N arquivos (multipart/form-data, campo `media`) e os anexa à ocorrência. Os arquivos são validados por mimetype (allowlist) e tamanho máximo. O nome do arquivo no disco é gerado pelo servidor. Em caso de falha ao gravar no banco, os arquivos já salvos são removidos do disco.",
+        "description": "Faz upload de 1..N arquivos (multipart/form-data, campo `media`) e os anexa à ocorrência. Apenas o autor da ocorrência ou um admin podem anexar mídias. Os arquivos são validados por mimetype (allowlist) e tamanho máximo. O nome do arquivo no disco é gerado pelo servidor. Em caso de falha ao gravar no banco, os arquivos já salvos são removidos do disco.",
         "operationId": "addOccurrenceMedia",
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
@@ -764,6 +764,7 @@
           },
           "400": { "$ref": "#/components/responses/BadRequest" },
           "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
           "404": { "$ref": "#/components/responses/NotFound" },
           "413": {
             "description": "Arquivo excede o tamanho máximo permitido",
@@ -790,13 +791,14 @@
       "delete": {
         "tags": ["Media"],
         "summary": "Remover uma mídia de uma ocorrência",
-        "description": "Remove o registro da mídia e o respectivo arquivo do disco. Retorna 404 se a mídia não existir ou não pertencer à ocorrência informada.",
+        "description": "Remove o registro da mídia e o respectivo arquivo do disco. Apenas o autor da ocorrência ou um admin podem remover. Retorna 404 se a mídia não existir ou não pertencer à ocorrência informada.",
         "operationId": "deleteOccurrenceMedia",
         "security": [{ "bearerAuth": [] }],
         "responses": {
           "204": { "description": "Mídia removida" },
           "400": { "$ref": "#/components/responses/BadRequest" },
           "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
           "404": { "$ref": "#/components/responses/NotFound" }
         }
       }

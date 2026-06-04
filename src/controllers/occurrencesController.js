@@ -272,13 +272,16 @@ const addMedia = async (req, res, next) => {
     const media = await occurrenceMediaService.addMedia({
       occurrenceId: id,
       files,
-      userId: req.user.id,
+      user: req.user,
     });
 
     res.status(201).json(media);
   } catch (err) {
     if (err.code === 'OCCURRENCE_NOT_FOUND') {
       return res.status(404).json({ error: err.message });
+    }
+    if (err.code === 'FORBIDDEN') {
+      return res.status(403).json({ error: err.message });
     }
     next(err);
   }
@@ -314,12 +317,16 @@ const removeMedia = async (req, res, next) => {
     const deleted = await occurrenceMediaService.removeMedia({
       occurrenceId: id,
       mediaId,
+      user: req.user,
     });
     if (!deleted) {
       return res.status(404).json({ error: 'Media not found' });
     }
     res.status(204).send();
   } catch (err) {
+    if (err.code === 'FORBIDDEN') {
+      return res.status(403).json({ error: err.message });
+    }
     next(err);
   }
 };

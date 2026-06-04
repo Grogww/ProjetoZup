@@ -1,7 +1,19 @@
 const fs = require('fs');
 const pool = require('../config/database');
 const occurrenceMediaModel = require('../models/occurrenceMediaModel');
+const occurrencesModel = require('../models/occurrencesModel');
 const storage = require('../config/storage');
+
+// Autorização: somente o autor da ocorrência ou um admin podem mexer nas mídias.
+const assertCanManage = (occurrence, user) => {
+  const isAuthor = user && occurrence.author_id === user.id;
+  const isAdmin = user && user.role === 'admin';
+  if (!isAuthor && !isAdmin) {
+    const err = new Error('Only the occurrence author or an admin can manage its media');
+    err.code = 'FORBIDDEN';
+    throw err;
+  }
+};
 
 // Monta a representação pública de uma linha de mídia (com url servível).
 const toPublic = (row) => ({
@@ -20,7 +32,7 @@ const toPublic = (row) => ({
 // enquanto anexamos mídias (FOR SHARE não serializa uploads concorrentes).
 const lockOccurrence = async (client, occurrenceId) => {
   const { rows } = await client.query(
-    `SELECT id FROM occurrences WHERE id = $1 FOR SHARE`,
+    `SELECT id, author_id FROM occurrences WHERE id = $1 FOR SHARE`,
     [occurrenceId]
   );
   return rows[0] || null;
@@ -30,7 +42,7 @@ const lockOccurrence = async (client, occurrenceId) => {
 // Ponto central da issue: tudo numa única transação. Ou todas as linhas entram
 // e os arquivos ficam, ou (em qualquer falha) faz-se ROLLBACK e só então os
 // arquivos são apagados — disco e banco terminam sempre consistentes.
-const addMedia = async ({ occurrenceId, files, userId }) => {
+const addMedia = async ({ occurrenceId, files, user }) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -42,6 +54,8 @@ const addMedia = async ({ occurrenceId, files, userId }) => {
       throw err;
     }
 
+    assertCanManage(occurrence, user);
+
     const created = [];
     for (const file of files) {
       const row = await occurrenceMediaModel.create(
@@ -51,7 +65,7 @@ const addMedia = async ({ occurrenceId, files, userId }) => {
           original_name: file.originalname,
           mime_type: file.mimetype,
           size_bytes: file.size,
-          uploaded_by: userId ?? null,
+          uploaded_by: user?.id ?? null,
         },
         client
       );
@@ -76,11 +90,19 @@ const listMedia = async (occurrenceId) => {
 };
 
 // Remove uma mídia: apaga a linha e, em seguida, o arquivo do disco.
-const removeMedia = async ({ occurrenceId, mediaId }) => {
+// Somente o autor da ocorrência ou um admin podem remover.
+const removeMedia = async ({ occurrenceId, mediaId, user }) => {
   const media = await occurrenceMediaModel.findById(mediaId);
   if (!media || media.occurrence_id !== occurrenceId) {
     return false;
   }
+
+  const occurrence = await occurrencesModel.findById(occurrenceId);
+  if (!occurrence) {
+    return false;
+  }
+
+  assertCanManage(occurrence, user);
 
   await occurrenceMediaModel.remove(mediaId);
   await fs.promises
