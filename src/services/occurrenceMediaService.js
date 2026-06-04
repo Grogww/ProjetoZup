@@ -1,6 +1,6 @@
 const fs = require('fs');
+const pool = require('../config/database');
 const occurrenceMediaModel = require('../models/occurrenceMediaModel');
-const occurrencesModel = require('../models/occurrencesModel');
 const storage = require('../config/storage');
 
 // Monta a representação pública de uma linha de mídia (com url servível).
@@ -16,12 +16,26 @@ const toPublic = (row) => ({
   created_at: row.created_at,
 });
 
+// Trava a ocorrência dentro da transação: impede que ela seja deletada
+// enquanto anexamos mídias (FOR SHARE não serializa uploads concorrentes).
+const lockOccurrence = async (client, occurrenceId) => {
+  const { rows } = await client.query(
+    `SELECT id FROM occurrences WHERE id = $1 FOR SHARE`,
+    [occurrenceId]
+  );
+  return rows[0] || null;
+};
+
 // Anexa 1..N arquivos (já gravados no disco pelo multer) a uma ocorrência.
-// Ponto central da issue: em qualquer falha, apagamos os arquivos para não
-// deixar órfãos no disco.
+// Ponto central da issue: tudo numa única transação. Ou todas as linhas entram
+// e os arquivos ficam, ou (em qualquer falha) faz-se ROLLBACK e só então os
+// arquivos são apagados — disco e banco terminam sempre consistentes.
 const addMedia = async ({ occurrenceId, files, userId }) => {
+  const client = await pool.connect();
   try {
-    const occurrence = await occurrencesModel.findById(occurrenceId);
+    await client.query('BEGIN');
+
+    const occurrence = await lockOccurrence(client, occurrenceId);
     if (!occurrence) {
       const err = new Error('Occurrence not found');
       err.code = 'OCCURRENCE_NOT_FOUND';
@@ -30,21 +44,29 @@ const addMedia = async ({ occurrenceId, files, userId }) => {
 
     const created = [];
     for (const file of files) {
-      const row = await occurrenceMediaModel.create({
-        occurrence_id: occurrenceId,
-        storage_key: storage.storageKeyForFilename(file.filename),
-        original_name: file.originalname,
-        mime_type: file.mimetype,
-        size_bytes: file.size,
-        uploaded_by: userId ?? null,
-      });
+      const row = await occurrenceMediaModel.create(
+        {
+          occurrence_id: occurrenceId,
+          storage_key: storage.storageKeyForFilename(file.filename),
+          original_name: file.originalname,
+          mime_type: file.mimetype,
+          size_bytes: file.size,
+          uploaded_by: userId ?? null,
+        },
+        client
+      );
       created.push(toPublic(row));
     }
+
+    await client.query('COMMIT');
     return created;
   } catch (err) {
-    // Rollback do disco: remove tudo que o multer gravou nesta requisição.
+    // ROLLBACK primeiro (banco volta a zero linhas), depois limpa o disco.
+    await client.query('ROLLBACK');
     await storage.removeFiles(files);
     throw err;
+  } finally {
+    client.release();
   }
 };
 
