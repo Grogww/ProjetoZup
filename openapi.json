@@ -706,6 +706,64 @@
         }
       }
     },
+    "/api/occurrences/{id}/reopen": {
+      "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+      "post": {
+        "tags": ["Occurrences"],
+        "summary": "Reabrir ocorrência com registro de reincidência (RF17)",
+        "description": "Reabre uma ocorrência finalizada (status `resolved` ou `closed`). Cria uma NOVA ocorrência em `pending`, vinculada à anterior (`parent_occurrence_id`) e à raiz da cadeia (`root_occurrence_id`), com `reopen_count` incrementado, e grava uma linha de auditoria de reincidência. A ocorrência original não muda de status. Fluxo comunitário: qualquer cidadão autenticado pode reabrir; o autor da nova ocorrência é quem reabriu. Campos opcionais no corpo sobrescrevem os dados copiados da original.",
+        "operationId": "reopenOccurrence",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/OccurrenceReopenInput" },
+              "example": {
+                "reason": "O poste voltou a apresentar o mesmo defeito após o reparo.",
+                "description": "Lâmpada queimada novamente no mesmo poste."
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Nova ocorrência criada pela reabertura",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Occurrence" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": {
+            "description": "Reabertura não permitida: a ocorrência não está finalizada (apenas resolved/closed) ou já foi reaberta (só a última da cadeia pode ser reaberta; `details.latest_occurrence_id` aponta a ocorrência atual).",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      }
+    },
+    "/api/occurrences/{id}/reopens": {
+      "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+      "get": {
+        "tags": ["Occurrences"],
+        "summary": "Listar histórico de reincidência",
+        "description": "Retorna todas as reaberturas da cadeia do problema (mesma raiz), a partir de qualquer ocorrência da cadeia, ordenadas pela sequência de reabertura.",
+        "operationId": "listOccurrenceReopens",
+        "responses": {
+          "200": {
+            "description": "Histórico de reaberturas",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/OccurrenceReopen" } }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
     "/api/occurrences/{id}/media": {
       "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
       "get": {
@@ -1165,6 +1223,7 @@
           "score": { "type": "integer" },
           "reopen_count": { "type": "integer" },
           "parent_occurrence_id": { "type": "integer", "nullable": true },
+          "root_occurrence_id": { "type": "integer", "nullable": true, "description": "Raiz da cadeia de reincidência. Nulo quando a ocorrência é a original do problema." },
           "resolved_at": { "type": "string", "format": "date-time", "nullable": true },
           "closed_at": { "type": "string", "format": "date-time", "nullable": true },
           "created_at": { "type": "string", "format": "date-time" },
@@ -1231,6 +1290,34 @@
         "required": ["status"],
         "properties": {
           "status": { "$ref": "#/components/schemas/OccurrenceStatus" }
+        }
+      },
+      "OccurrenceReopenInput": {
+        "type": "object",
+        "required": ["reason"],
+        "description": "Dados da reabertura. `reason` é obrigatório; os demais campos são overrides opcionais — quando omitidos, são copiados da ocorrência original. latitude e longitude devem ser enviados juntos.",
+        "properties": {
+          "reason": { "type": "string", "description": "Motivo da reabertura (por que o problema voltou)." },
+          "title": { "type": "string", "maxLength": 200 },
+          "description": { "type": "string" },
+          "address": { "type": "string", "nullable": true },
+          "latitude": { "type": "number", "format": "double", "minimum": -90, "maximum": 90 },
+          "longitude": { "type": "number", "format": "double", "minimum": -180, "maximum": 180 }
+        }
+      },
+      "OccurrenceReopen": {
+        "type": "object",
+        "description": "Registro de auditoria de uma reabertura (reincidência).",
+        "properties": {
+          "id": { "type": "integer" },
+          "original_occurrence_id": { "type": "integer", "nullable": true, "description": "Ocorrência finalizada que foi reaberta (predecessora). Nulo se ela foi removida." },
+          "new_occurrence_id": { "type": "integer", "description": "Nova ocorrência gerada pela reabertura." },
+          "root_occurrence_id": { "type": "integer", "nullable": true, "description": "Raiz da cadeia de reincidência." },
+          "reopened_by": { "type": "integer", "nullable": true, "description": "Usuário que reabriu. Nulo se o usuário foi removido." },
+          "reason": { "type": "string" },
+          "previous_status": { "$ref": "#/components/schemas/OccurrenceStatus" },
+          "reopen_sequence": { "type": "integer", "description": "Número da reincidência (1 = primeira reabertura)." },
+          "created_at": { "type": "string", "format": "date-time" }
         }
       },
       "EvaluationVoteType": {

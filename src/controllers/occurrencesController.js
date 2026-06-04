@@ -331,6 +331,103 @@ const removeMedia = async (req, res, next) => {
   }
 };
 
+const reopen = async (req, res, next) => {
+  try {
+    const id = parsePositiveInt(req.params.id);
+    if (id === null) {
+      return res.status(400).json({ error: 'Invalid id' });
+    }
+
+    if (!req.user || !Number.isInteger(req.user.id)) {
+      return res.status(401).json({ error: 'Authenticated user required' });
+    }
+
+    const { reason, title, description, address, latitude, longitude } = req.body || {};
+
+    if (typeof reason !== 'string' || reason.trim().length === 0) {
+      return res.status(400).json({ error: 'reason is required' });
+    }
+
+    // Overrides opcionais: o problema reincidiu, mas os detalhes podem ter mudado.
+    const overrides = {};
+
+    if (title !== undefined) {
+      if (typeof title !== 'string' || title.trim().length === 0) {
+        return res.status(400).json({ error: 'title must be a non-empty string' });
+      }
+      if (title.length > 200) {
+        return res.status(400).json({ error: 'title must be at most 200 characters' });
+      }
+      overrides.title = title.trim();
+    }
+
+    if (description !== undefined) {
+      if (typeof description !== 'string' || description.trim().length === 0) {
+        return res.status(400).json({ error: 'description must be a non-empty string' });
+      }
+      overrides.description = description.trim();
+    }
+
+    if (address !== undefined && address !== null) {
+      if (typeof address !== 'string') {
+        return res.status(400).json({ error: 'address must be a string' });
+      }
+      overrides.address = address.trim();
+    }
+
+    // latitude e longitude andam juntas: ou ambas, ou nenhuma.
+    if (latitude !== undefined || longitude !== undefined) {
+      const lat = parseLatitude(latitude);
+      const lng = parseLongitude(longitude);
+      if (lat === null) {
+        return res.status(400).json({ error: 'latitude must be between -90 and 90' });
+      }
+      if (lng === null) {
+        return res.status(400).json({ error: 'longitude must be between -180 and 180' });
+      }
+      overrides.latitude = lat;
+      overrides.longitude = lng;
+    }
+
+    const { occurrence } = await occurrencesService.reopenOccurrence({
+      occurrenceId: id,
+      user: req.user,
+      reason: reason.trim(),
+      overrides,
+    });
+
+    res.status(201).json(occurrence);
+  } catch (err) {
+    if (err.code === 'OCCURRENCE_NOT_FOUND') {
+      return res.status(404).json({ error: err.message });
+    }
+    if (err.code === 'OCCURRENCE_NOT_REOPENABLE') {
+      return res.status(409).json({ error: err.message });
+    }
+    if (err.code === 'OCCURRENCE_ALREADY_REOPENED') {
+      return res.status(409).json({ error: err.message, details: err.details });
+    }
+    next(err);
+  }
+};
+
+const listReopens = async (req, res, next) => {
+  try {
+    const id = parsePositiveInt(req.params.id);
+    if (id === null) {
+      return res.status(400).json({ error: 'Invalid id' });
+    }
+
+    const history = await occurrencesService.getReopenHistory(id);
+    if (history === null) {
+      return res.status(404).json({ error: 'Occurrence not found' });
+    }
+    res.json(history);
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   list,
   nearby,
@@ -341,4 +438,6 @@ module.exports = {
   addMedia,
   listMedia,
   removeMedia,
+  reopen,
+  listReopens,
 };

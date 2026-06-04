@@ -17,6 +17,7 @@ const BASE_SELECT = `
          score,
          reopen_count,
          parent_occurrence_id,
+         root_occurrence_id,
          resolved_at,
          closed_at,
          created_at,
@@ -84,6 +85,7 @@ const findNearby = async ({ latitude, longitude, radius_m }) => {
             score,
             reopen_count,
             parent_occurrence_id,
+            root_occurrence_id,
             resolved_at,
             closed_at,
             created_at,
@@ -116,9 +118,12 @@ const create = async ({
   author_id,
   assigned_organization_id,
   parent_occurrence_id,
+  root_occurrence_id,
+  reopen_count,
   status,
-}) => {
-  const { rows } = await pool.query(
+}, client) => {
+  const runner = client || pool;
+  const { rows } = await runner.query(
     `INSERT INTO occurrences (
         title,
         description,
@@ -130,6 +135,8 @@ const create = async ({
         author_id,
         assigned_organization_id,
         parent_occurrence_id,
+        root_occurrence_id,
+        reopen_count,
         status
       ) VALUES (
         $1,
@@ -142,7 +149,9 @@ const create = async ({
         $9,
         $10,
         $11,
-        COALESCE($12, 'pending'::occurrence_status)
+        $12,
+        COALESCE($13, 0),
+        COALESCE($14, 'pending'::occurrence_status)
       )
       RETURNING id,
                 title,
@@ -160,6 +169,7 @@ const create = async ({
                 score,
                 reopen_count,
                 parent_occurrence_id,
+                root_occurrence_id,
                 resolved_at,
                 closed_at,
                 created_at,
@@ -176,6 +186,8 @@ const create = async ({
       author_id,
       assigned_organization_id ?? null,
       parent_occurrence_id ?? null,
+      root_occurrence_id ?? null,
+      reopen_count ?? null,
       status ?? null,
     ]
   );
@@ -194,10 +206,6 @@ const updateStatus = async (id, status) => {
                           WHEN $2 = 'closed' AND closed_at IS NULL THEN now()
                           ELSE closed_at
                         END,
-            reopen_count = CASE
-                             WHEN $2 = 'pending' AND status IN ('resolved', 'closed') THEN reopen_count + 1
-                             ELSE reopen_count
-                           END,
             updated_at = now()
       WHERE id = $1
       RETURNING id,
@@ -216,6 +224,7 @@ const updateStatus = async (id, status) => {
                 score,
                 reopen_count,
                 parent_occurrence_id,
+                root_occurrence_id,
                 resolved_at,
                 closed_at,
                 created_at,

@@ -1,4 +1,6 @@
+const pool = require('../config/database');
 const occurrencesModel = require('../models/occurrencesModel');
+const occurrenceReopensModel = require('../models/occurrenceReopensModel');
 const categoriesModel = require('../models/categoriesModel');
 const subcategoriesModel = require('../models/subcategoriesModel');
 const neighborhoodsModel = require('../models/neighborhoodsModel');
@@ -6,6 +8,10 @@ const evaluationsService = require('./evaluationsService');
 const occurrenceMediaService = require('./occurrenceMediaService');
 
 const ANTIDUPLICITY_RADIUS_M = 500;
+
+// Status finalizados: não bloqueiam a criação de uma nova ocorrência próxima
+// (uma já resolvida/fechada pode reincidir) e são os elegíveis para reabertura.
+const FINALIZED_STATUSES = ['resolved', 'closed'];
 
 const listOccurrences = async (filters) => {
   return occurrencesModel.findAll(filters);
@@ -78,7 +84,9 @@ const createOccurrence = async (data) => {
     radius_m: ANTIDUPLICITY_RADIUS_M,
   });
   const duplicate = nearby.find(
-    (o) => o.category_id === data.category_id && o.status !== 'closed'
+    (o) =>
+      o.category_id === data.category_id &&
+      !FINALIZED_STATUSES.includes(o.status)
   );
   if (duplicate) {
     const err = new Error('A similar open occurrence already exists within 500m');
@@ -122,6 +130,126 @@ const deleteOccurrence = async (id) => {
   return deleted;
 };
 
+// Reabre uma ocorrência finalizada (RF17): cria uma NOVA ocorrência vinculada
+// à anterior e grava uma linha de auditoria em occurrence_reopens. A ocorrência
+// original não muda de status — fica como registro do ciclo anterior.
+// Tudo em uma única transação (nova ocorrência + auditoria são atômicas).
+const reopenOccurrence = async ({ occurrenceId, user, reason, overrides = {} }) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Trava a original e já traz lat/lng para copiar a geometria.
+    const { rows } = await client.query(
+      `SELECT id,
+              title,
+              description,
+              ST_X(location) AS longitude,
+              ST_Y(location) AS latitude,
+              address,
+              category_id,
+              subcategory_id,
+              neighborhood_id,
+              status,
+              reopen_count,
+              root_occurrence_id
+         FROM occurrences
+        WHERE id = $1
+        FOR UPDATE`,
+      [occurrenceId]
+    );
+    const original = rows[0];
+    if (!original) {
+      const err = new Error('Occurrence not found');
+      err.code = 'OCCURRENCE_NOT_FOUND';
+      throw err;
+    }
+
+    if (!FINALIZED_STATUSES.includes(original.status)) {
+      const err = new Error('Only resolved or closed occurrences can be reopened');
+      err.code = 'OCCURRENCE_NOT_REOPENABLE';
+      throw err;
+    }
+
+    // Só a ponta da cadeia pode ser reaberta: se esta ocorrência já tem uma
+    // sucessora (alguém já a reabriu), a reabertura deve partir da última da
+    // cadeia, não desta. A checagem roda sob o FOR UPDATE acima, então duas
+    // reaberturas concorrentes da mesma ocorrência são serializadas — a segunda
+    // enxerga a filha criada pela primeira e é barrada.
+    const { rows: successors } = await client.query(
+      `SELECT id FROM occurrences WHERE parent_occurrence_id = $1 LIMIT 1`,
+      [occurrenceId]
+    );
+    if (successors.length > 0) {
+      const err = new Error(
+        'This occurrence has already been reopened; reopen the latest occurrence in the chain'
+      );
+      err.code = 'OCCURRENCE_ALREADY_REOPENED';
+      err.details = { latest_occurrence_id: successors[0].id };
+      throw err;
+    }
+
+    // Raiz da cadeia: a original já tinha raiz? então mantém; senão a própria
+    // original vira a raiz do problema recorrente.
+    const root = original.root_occurrence_id ?? original.id;
+    const reopenSequence = original.reopen_count + 1;
+
+    // Cria a nova ocorrência copiando os dados da original, com overrides
+    // opcionais. assigned_organization_id fica nulo de propósito: a reincidência
+    // passa por re-triagem.
+    const newOccurrence = await occurrencesModel.create(
+      {
+        title: overrides.title ?? original.title,
+        description: overrides.description ?? original.description,
+        latitude: overrides.latitude ?? original.latitude,
+        longitude: overrides.longitude ?? original.longitude,
+        address: overrides.address ?? original.address,
+        category_id: original.category_id,
+        subcategory_id: original.subcategory_id,
+        neighborhood_id: original.neighborhood_id,
+        author_id: user.id,
+        assigned_organization_id: null,
+        parent_occurrence_id: original.id,
+        root_occurrence_id: root,
+        reopen_count: reopenSequence,
+        status: 'pending',
+      },
+      client
+    );
+
+    const reopen = await occurrenceReopensModel.create(
+      {
+        original_occurrence_id: original.id,
+        new_occurrence_id: newOccurrence.id,
+        root_occurrence_id: root,
+        reopened_by: user.id,
+        reason,
+        previous_status: original.status,
+        reopen_sequence: reopenSequence,
+      },
+      client
+    );
+
+    await client.query('COMMIT');
+    return { occurrence: newOccurrence, reopen };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
+// Histórico de reincidência de um problema, a partir de qualquer ocorrência da
+// cadeia. Retorna null se a ocorrência não existir.
+const getReopenHistory = async (occurrenceId) => {
+  const occurrence = await occurrencesModel.findById(occurrenceId);
+  if (!occurrence) return null;
+
+  const root = occurrence.root_occurrence_id ?? occurrence.id;
+  return occurrenceReopensModel.findByRoot(root);
+};
+
 module.exports = {
   listOccurrences,
   getOccurrenceById,
@@ -129,5 +257,7 @@ module.exports = {
   createOccurrence,
   updateOccurrenceStatus,
   deleteOccurrence,
+  reopenOccurrence,
+  getReopenHistory,
   ANTIDUPLICITY_RADIUS_M,
 };
