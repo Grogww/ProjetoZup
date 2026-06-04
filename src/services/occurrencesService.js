@@ -3,6 +3,7 @@ const categoriesModel = require('../models/categoriesModel');
 const subcategoriesModel = require('../models/subcategoriesModel');
 const neighborhoodsModel = require('../models/neighborhoodsModel');
 const evaluationsService = require('./evaluationsService');
+const occurrenceMediaService = require('./occurrenceMediaService');
 
 const ANTIDUPLICITY_RADIUS_M = 500;
 
@@ -18,7 +19,9 @@ const getOccurrenceById = async (id, { userId } = {}) => {
     ? await evaluationsService.getUserVote(userId, id)
     : null;
 
-  return { ...occurrence, voted_user };
+  const media = await occurrenceMediaService.listMedia(id);
+
+  return { ...occurrence, voted_user, media };
 };
 
 const listNearbyOccurrences = async ({ latitude, longitude, radius_m }) => {
@@ -97,8 +100,13 @@ const deleteOccurrence = async (id) => {
   const existing = await occurrencesModel.findById(id);
   if (!existing) return false;
 
+  // O CASCADE remove as linhas de occurrence_media, mas não os bytes em disco.
+  // Coletamos as chaves antes de excluir e apagamos os arquivos depois.
+  const storageKeys = await occurrenceMediaService.collectStorageKeys(id);
+
+  let deleted;
   try {
-    return await occurrencesModel.remove(id);
+    deleted = await occurrencesModel.remove(id);
   } catch (err) {
     if (err.code === '23503') {
       const conflict = new Error('Occurrence is referenced by other records');
@@ -107,6 +115,11 @@ const deleteOccurrence = async (id) => {
     }
     throw err;
   }
+
+  if (deleted) {
+    await occurrenceMediaService.removeFilesByStorageKeys(storageKeys);
+  }
+  return deleted;
 };
 
 module.exports = {

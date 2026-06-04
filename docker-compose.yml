@@ -34,9 +34,12 @@ services:
       DB_PORT: 5432
     ports:
       - "${PORT}:${PORT}"
+    volumes:
+      - zup_uploads:/app/uploads
     depends_on:
       db:
         condition: service_healthy
 
 volumes:
   zup_pgdata:
+  zup_uploads:

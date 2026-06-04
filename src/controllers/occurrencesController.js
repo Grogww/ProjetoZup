@@ -1,4 +1,6 @@
 const occurrencesService = require('../services/occurrencesService');
+const occurrenceMediaService = require('../services/occurrenceMediaService');
+const storage = require('../config/storage');
 
 const VALID_STATUSES = ['pending', 'in_progress', 'resolved', 'rejected', 'closed'];
 
@@ -249,4 +251,87 @@ const remove = async (req, res, next) => {
   }
 };
 
-module.exports = { list, nearby, getById, create, updateStatus, remove };
+const addMedia = async (req, res, next) => {
+  const files = req.files || [];
+  try {
+    const id = parsePositiveInt(req.params.id);
+    if (id === null) {
+      await storage.removeFiles(files);
+      return res.status(400).json({ error: 'Invalid id' });
+    }
+
+    if (files.length === 0) {
+      return res.status(400).json({ error: 'No files received. Use the "media" field' });
+    }
+
+    if (!req.user || !Number.isInteger(req.user.id)) {
+      await storage.removeFiles(files);
+      return res.status(401).json({ error: 'Authenticated user required' });
+    }
+
+    const media = await occurrenceMediaService.addMedia({
+      occurrenceId: id,
+      files,
+      userId: req.user.id,
+    });
+
+    res.status(201).json(media);
+  } catch (err) {
+    if (err.code === 'OCCURRENCE_NOT_FOUND') {
+      return res.status(404).json({ error: err.message });
+    }
+    next(err);
+  }
+};
+
+const listMedia = async (req, res, next) => {
+  try {
+    const id = parsePositiveInt(req.params.id);
+    if (id === null) {
+      return res.status(400).json({ error: 'Invalid id' });
+    }
+
+    const occurrence = await occurrencesService.getOccurrenceById(id);
+    if (!occurrence) {
+      return res.status(404).json({ error: 'Occurrence not found' });
+    }
+
+    const media = await occurrenceMediaService.listMedia(id);
+    res.json(media);
+  } catch (err) {
+    next(err);
+  }
+};
+
+const removeMedia = async (req, res, next) => {
+  try {
+    const id = parsePositiveInt(req.params.id);
+    const mediaId = parsePositiveInt(req.params.mediaId);
+    if (id === null || mediaId === null) {
+      return res.status(400).json({ error: 'Invalid id' });
+    }
+
+    const deleted = await occurrenceMediaService.removeMedia({
+      occurrenceId: id,
+      mediaId,
+    });
+    if (!deleted) {
+      return res.status(404).json({ error: 'Media not found' });
+    }
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = {
+  list,
+  nearby,
+  getById,
+  create,
+  updateStatus,
+  remove,
+  addMedia,
+  listMedia,
+  removeMedia,
+};

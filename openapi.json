@@ -17,7 +17,8 @@
     { "name": "Subcategories", "description": "Subcategorias de ocorrências" },
     { "name": "Neighborhoods", "description": "Bairros" },
     { "name": "Occurrences", "description": "Registro e gestão de ocorrências urbanas" },
-    { "name": "Evaluations", "description": "Avaliações de ocorrências (upvote/downvote)" }
+    { "name": "Evaluations", "description": "Avaliações de ocorrências (upvote/downvote)" },
+    { "name": "Media", "description": "Anexos de mídia (fotos/vídeos) de ocorrências" }
   ],
   "paths": {
     "/api/health": {
@@ -705,6 +706,101 @@
         }
       }
     },
+    "/api/occurrences/{id}/media": {
+      "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+      "get": {
+        "tags": ["Media"],
+        "summary": "Listar mídias de uma ocorrência",
+        "description": "Retorna todas as mídias anexadas à ocorrência, ordenadas por data de criação (mais antigas primeiro). Cada item traz a `url` servível dos bytes.",
+        "operationId": "listOccurrenceMedia",
+        "responses": {
+          "200": {
+            "description": "Lista de mídias da ocorrência",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/OccurrenceMedia" } }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "post": {
+        "tags": ["Media"],
+        "summary": "Anexar foto/mídia a uma ocorrência (RF18)",
+        "description": "Faz upload de 1..N arquivos (multipart/form-data, campo `media`) e os anexa à ocorrência. Os arquivos são validados por mimetype (allowlist) e tamanho máximo. O nome do arquivo no disco é gerado pelo servidor. Em caso de falha ao gravar no banco, os arquivos já salvos são removidos do disco.",
+        "operationId": "addOccurrenceMedia",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["media"],
+                "properties": {
+                  "media": {
+                    "type": "array",
+                    "items": { "type": "string", "format": "binary" },
+                    "description": "Um ou mais arquivos de mídia. Mimetypes permitidos (default): image/jpeg, image/png, image/webp, image/gif."
+                  }
+                }
+              },
+              "encoding": {
+                "media": { "contentType": "image/jpeg, image/png, image/webp, image/gif" }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Mídias anexadas",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/OccurrenceMedia" } }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "413": {
+            "description": "Arquivo excede o tamanho máximo permitido",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "415": {
+            "description": "Tipo de arquivo não suportado (fora da allowlist)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      }
+    },
+    "/api/occurrences/{id}/media/{mediaId}": {
+      "parameters": [
+        { "$ref": "#/components/parameters/IdPath" },
+        {
+          "name": "mediaId",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "integer", "minimum": 1 },
+          "example": 1
+        }
+      ],
+      "delete": {
+        "tags": ["Media"],
+        "summary": "Remover uma mídia de uma ocorrência",
+        "description": "Remove o registro da mídia e o respectivo arquivo do disco. Retorna 404 se a mídia não existir ou não pertencer à ocorrência informada.",
+        "operationId": "deleteOccurrenceMedia",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "204": { "description": "Mídia removida" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
     "/api/occurrences/{id}/evaluations": {
       "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
       "get": {
@@ -1070,7 +1166,34 @@
           "resolved_at": { "type": "string", "format": "date-time", "nullable": true },
           "closed_at": { "type": "string", "format": "date-time", "nullable": true },
           "created_at": { "type": "string", "format": "date-time" },
-          "updated_at": { "type": "string", "format": "date-time" }
+          "updated_at": { "type": "string", "format": "date-time" },
+          "media": {
+            "type": "array",
+            "description": "Mídias anexadas à ocorrência. Presente apenas no detalhe (GET /api/occurrences/{id}).",
+            "items": { "$ref": "#/components/schemas/OccurrenceMedia" }
+          }
+        }
+      },
+      "OccurrenceMedia": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "occurrence_id": { "type": "integer" },
+          "url": {
+            "type": "string",
+            "description": "URL servível da mídia. Absoluta quando PUBLIC_BASE_URL está configurada; caso contrário relativa (ex.: /uploads/occurrences/<arquivo>).",
+            "example": "/uploads/occurrences/a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4.jpg"
+          },
+          "storage_key": {
+            "type": "string",
+            "description": "Caminho relativo do arquivo dentro do diretório de uploads.",
+            "example": "occurrences/a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4.jpg"
+          },
+          "original_name": { "type": "string", "nullable": true },
+          "mime_type": { "type": "string", "example": "image/jpeg" },
+          "size_bytes": { "type": "integer", "format": "int64" },
+          "uploaded_by": { "type": "integer", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time" }
         }
       },
       "OccurrenceNearby": {
