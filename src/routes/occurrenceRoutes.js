@@ -26,4 +26,7 @@ router.delete(
   occurrencesController.removeMedia
 );
 
+router.get('/occurrences/:id/reopens', occurrencesController.listReopens);
+router.post('/occurrences/:id/reopen', auth, occurrencesController.reopen);
+
 module.exports = router;
