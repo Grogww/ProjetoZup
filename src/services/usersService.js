@@ -10,7 +10,6 @@ const sanitize = (user) => {
     refresh_token,
     reset_token,
     reset_token_expires_at,
-    cpf,
     ...publicFields
   } = user;
   return publicFields;

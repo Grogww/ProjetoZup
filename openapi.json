@@ -1010,11 +1010,12 @@
       },
       "User": {
         "type": "object",
-        "description": "Perfil público do usuário (campos sensíveis omitidos: password_hash, refresh_token, reset_token, cpf).",
+        "description": "Perfil público do usuário (campos sensíveis omitidos: password_hash, refresh_token, reset_token).",
         "properties": {
           "id": { "type": "integer" },
           "name": { "type": "string", "maxLength": 150 },
           "email": { "type": "string", "format": "email", "maxLength": 255 },
+          "cpf": { "type": "string", "description": "CPF do usuário (apenas dígitos).", "maxLength": 11 },
           "role": { "$ref": "#/components/schemas/UserRole" },
           "avatar_url": { "type": "string", "maxLength": 500, "nullable": true },
           "neighborhood_id": { "type": "integer", "nullable": true },
@@ -1069,7 +1070,10 @@
         "type": "object",
         "required": ["user", "access_token", "refresh_token", "token_type", "expires_in"],
         "properties": {
-          "user": { "$ref": "#/components/schemas/User" },
+          "user": {
+            "allOf": [{ "$ref": "#/components/schemas/User" }],
+            "description": "Perfil do usuário autenticado. O `cpf` é omitido nas respostas de autenticação; ele só é exposto nos endpoints de gerenciamento de usuários (GET /api/users e GET /api/users/me)."
+          },
           "access_token": { "type": "string", "description": "JWT de acesso. Enviar como `Authorization: Bearer <token>`." },
           "refresh_token": { "type": "string", "description": "JWT usado em /api/auth/refresh para emitir um novo access_token." },
           "token_type": { "type": "string", "example": "Bearer" },
