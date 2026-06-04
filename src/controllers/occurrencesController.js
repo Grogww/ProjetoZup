@@ -397,6 +397,9 @@ const reopen = async (req, res, next) => {
     if (err.code === 'OCCURRENCE_NOT_REOPENABLE') {
       return res.status(409).json({ error: err.message });
     }
+    if (err.code === 'OCCURRENCE_ALREADY_REOPENED') {
+      return res.status(409).json({ error: err.message, details: err.details });
+    }
     next(err);
   }
 };

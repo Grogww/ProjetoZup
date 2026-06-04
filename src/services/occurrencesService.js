@@ -171,6 +171,24 @@ const reopenOccurrence = async ({ occurrenceId, user, reason, overrides = {} }) 
       throw err;
     }
 
+    // Só a ponta da cadeia pode ser reaberta: se esta ocorrência já tem uma
+    // sucessora (alguém já a reabriu), a reabertura deve partir da última da
+    // cadeia, não desta. A checagem roda sob o FOR UPDATE acima, então duas
+    // reaberturas concorrentes da mesma ocorrência são serializadas — a segunda
+    // enxerga a filha criada pela primeira e é barrada.
+    const { rows: successors } = await client.query(
+      `SELECT id FROM occurrences WHERE parent_occurrence_id = $1 LIMIT 1`,
+      [occurrenceId]
+    );
+    if (successors.length > 0) {
+      const err = new Error(
+        'This occurrence has already been reopened; reopen the latest occurrence in the chain'
+      );
+      err.code = 'OCCURRENCE_ALREADY_REOPENED';
+      err.details = { latest_occurrence_id: successors[0].id };
+      throw err;
+    }
+
     // Raiz da cadeia: a original já tinha raiz? então mantém; senão a própria
     // original vira a raiz do problema recorrente.
     const root = original.root_occurrence_id ?? original.id;
