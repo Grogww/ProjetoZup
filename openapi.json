@@ -717,6 +717,7 @@
       "patch": {
         "tags": ["Occurrences"],
         "summary": "Atualizar status de ocorrência (RF14)",
+        "description": "Aplica uma transição de status validada pela máquina de estados: `pending → awaiting_validation | closed`; `awaiting_validation → validated | closed`; `validated → in_analysis | closed`; `in_analysis → in_progress | closed`; `in_progress → resolved | closed`; `resolved → resolution_validated | resolution_rejected`; `resolution_rejected → in_progress | closed`; `resolution_validated → closed`. `closed` é terminal (a reabertura é feita via POST /reopen). Cada mudança é registrada em occurrence_status_history. Transições não permitidas retornam 409.",
         "operationId": "updateOccurrenceStatus",
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
@@ -724,7 +725,7 @@
           "content": {
             "application/json": {
               "schema": { "$ref": "#/components/schemas/OccurrenceStatusUpdateInput" },
-              "example": { "status": "in_progress" }
+              "example": { "status": "awaiting_validation" }
             }
           }
         },
@@ -737,7 +738,11 @@
           },
           "400": { "$ref": "#/components/responses/BadRequest" },
           "401": { "$ref": "#/components/responses/Unauthorized" },
-          "404": { "$ref": "#/components/responses/NotFound" }
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": {
+            "description": "Transição de status não permitida pela máquina de estados. `details` traz `from`, `to` e a lista `allowed`.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
         }
       }
     },
@@ -791,6 +796,27 @@
             "content": {
               "application/json": {
                 "schema": { "type": "array", "items": { "$ref": "#/components/schemas/OccurrenceReopen" } }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/occurrences/{id}/status-history": {
+      "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
+      "get": {
+        "tags": ["Occurrences"],
+        "summary": "Listar histórico de status de uma ocorrência",
+        "description": "Retorna todas as mudanças de status da ocorrência, do mais antigo ao mais recente. O primeiro registro representa a criação (`old_status` nulo).",
+        "operationId": "listOccurrenceStatusHistory",
+        "responses": {
+          "200": {
+            "description": "Histórico de status",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/OccurrenceStatusHistory" } }
               }
             }
           },
@@ -1242,7 +1268,17 @@
       },
       "OccurrenceStatus": {
         "type": "string",
-        "enum": ["pending", "in_progress", "resolved", "rejected", "closed"]
+        "enum": [
+          "pending",
+          "awaiting_validation",
+          "validated",
+          "in_analysis",
+          "in_progress",
+          "resolved",
+          "resolution_validated",
+          "resolution_rejected",
+          "closed"
+        ]
       },
       "Occurrence": {
         "type": "object",
@@ -1368,6 +1404,22 @@
           "reason": { "type": "string" },
           "previous_status": { "$ref": "#/components/schemas/OccurrenceStatus" },
           "reopen_sequence": { "type": "integer", "description": "Número da reincidência (1 = primeira reabertura)." },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "OccurrenceStatusHistory": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "occurrence_id": { "type": "integer" },
+          "old_status": {
+            "allOf": [{ "$ref": "#/components/schemas/OccurrenceStatus" }],
+            "nullable": true,
+            "description": "Status anterior. Nulo no registro inicial (criação da ocorrência)."
+          },
+          "new_status": { "$ref": "#/components/schemas/OccurrenceStatus" },
+          "changed_by": { "type": "integer", "nullable": true, "description": "Usuário que aplicou a mudança. Nulo se o usuário foi removido." },
+          "note": { "type": "string", "nullable": true },
           "created_at": { "type": "string", "format": "date-time" }
         }
       },

@@ -194,8 +194,9 @@ const create = async ({
   return rows[0];
 };
 
-const updateStatus = async (id, status) => {
-  const { rows } = await pool.query(
+const updateStatus = async (id, status, client) => {
+  const runner = client || pool;
+  const { rows } = await runner.query(
     `UPDATE occurrences
         SET status = $2::occurrence_status,
             resolved_at = CASE

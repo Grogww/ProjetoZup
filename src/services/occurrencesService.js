@@ -1,6 +1,7 @@
 const pool = require('../config/database');
 const occurrencesModel = require('../models/occurrencesModel');
 const occurrenceReopensModel = require('../models/occurrenceReopensModel');
+const occurrenceStatusHistoryModel = require('../models/occurrenceStatusHistoryModel');
 const categoriesModel = require('../models/categoriesModel');
 const subcategoriesModel = require('../models/subcategoriesModel');
 const neighborhoodsModel = require('../models/neighborhoodsModel');
@@ -9,6 +10,28 @@ const occurrenceMediaService = require('./occurrenceMediaService');
 const { assertWithinEditWindow } = require('../utils/occurrenceEditWindow');
 
 const ANTIDUPLICITY_RADIUS_M = 500;
+
+// Máquina de estados das ocorrências. Cada chave é um status e o valor lista os
+// status para os quais ele pode transitar. 'closed' é terminal — a reabertura
+// acontece via POST /reopen, que cria uma NOVA ocorrência (não muda este status).
+// O valor 'reopened' existe no enum do banco por legado, mas foi descontinuado:
+// não é selecionável nem alvo de transição.
+const STATUS_TRANSITIONS = {
+  pending: ['awaiting_validation', 'closed'],
+  awaiting_validation: ['validated', 'closed'],
+  validated: ['in_analysis', 'closed'],
+  in_analysis: ['in_progress', 'closed'],
+  in_progress: ['resolved', 'closed'],
+  resolved: ['resolution_validated', 'resolution_rejected'],
+  resolution_rejected: ['in_progress', 'closed'],
+  resolution_validated: ['closed'],
+  closed: [],
+};
+
+// Lista única de status selecionáveis pela aplicação (fonte da verdade para as
+// validações dos controllers). Deriva da máquina de estados, então nunca inclui
+// 'reopened'.
+const OCCURRENCE_STATUSES = Object.keys(STATUS_TRANSITIONS);
 
 // Status finalizados: não bloqueiam a criação de uma nova ocorrência próxima
 // (uma já resolvida/fechada pode reincidir) e são os elegíveis para reabertura.
@@ -96,13 +119,69 @@ const createOccurrence = async (data) => {
     throw err;
   }
 
-  return occurrencesModel.create(data);
+  // Cria a ocorrência e registra o estado inicial do histórico (NULL -> status
+  // inicial) na mesma transação, para que toda ocorrência tenha trilha completa.
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const occurrence = await occurrencesModel.create(data, client);
+    await occurrenceStatusHistoryModel.create(
+      {
+        occurrence_id: occurrence.id,
+        old_status: null,
+        new_status: occurrence.status,
+        changed_by: occurrence.author_id,
+      },
+      client
+    );
+    await client.query('COMMIT');
+    return occurrence;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 };
 
-const updateOccurrenceStatus = async (id, status) => {
+// Valida e aplica uma transição de status conforme a máquina de estados,
+// gravando a mudança em occurrence_status_history. Retorna null se a ocorrência
+// não existir; lança INVALID_STATUS_TRANSITION se a transição não for permitida.
+const updateOccurrenceStatus = async (id, status, { user } = {}) => {
   const existing = await occurrencesModel.findById(id);
   if (!existing) return null;
-  return occurrencesModel.updateStatus(id, status);
+
+  const allowed = STATUS_TRANSITIONS[existing.status] || [];
+  if (!allowed.includes(status)) {
+    const err = new Error(
+      `Cannot change status from '${existing.status}' to '${status}'`
+    );
+    err.code = 'INVALID_STATUS_TRANSITION';
+    err.details = { from: existing.status, to: status, allowed };
+    throw err;
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const updated = await occurrencesModel.updateStatus(id, status, client);
+    await occurrenceStatusHistoryModel.create(
+      {
+        occurrence_id: id,
+        old_status: existing.status,
+        new_status: status,
+        changed_by: user?.id ?? null,
+      },
+      client
+    );
+    await client.query('COMMIT');
+    return updated;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 };
 
 // Autorização da edição de campos: somente o autor da ocorrência ou um admin.
@@ -254,6 +333,17 @@ const reopenOccurrence = async ({ occurrenceId, user, reason, overrides = {} }) 
       client
     );
 
+    // Estado inicial da nova ocorrência no histórico (NULL -> pending).
+    await occurrenceStatusHistoryModel.create(
+      {
+        occurrence_id: newOccurrence.id,
+        old_status: null,
+        new_status: newOccurrence.status,
+        changed_by: user.id,
+      },
+      client
+    );
+
     await client.query('COMMIT');
     return { occurrence: newOccurrence, reopen };
   } catch (err) {
@@ -274,6 +364,14 @@ const getReopenHistory = async (occurrenceId) => {
   return occurrenceReopensModel.findByRoot(root);
 };
 
+// Histórico de mudanças de status de uma ocorrência. Retorna null se a
+// ocorrência não existir.
+const getStatusHistory = async (occurrenceId) => {
+  const occurrence = await occurrencesModel.findById(occurrenceId);
+  if (!occurrence) return null;
+  return occurrenceStatusHistoryModel.findByOccurrence(occurrenceId);
+};
+
 module.exports = {
   listOccurrences,
   getOccurrenceById,
@@ -284,5 +382,8 @@ module.exports = {
   deleteOccurrence,
   reopenOccurrence,
   getReopenHistory,
+  getStatusHistory,
+  OCCURRENCE_STATUSES,
+  STATUS_TRANSITIONS,
   ANTIDUPLICITY_RADIUS_M,
 };

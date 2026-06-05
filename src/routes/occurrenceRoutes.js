@@ -30,4 +30,6 @@ router.delete(
 router.get('/occurrences/:id/reopens', occurrencesController.listReopens);
 router.post('/occurrences/:id/reopen', auth, occurrencesController.reopen);
 
+router.get('/occurrences/:id/status-history', occurrencesController.listStatusHistory);
+
 module.exports = router;

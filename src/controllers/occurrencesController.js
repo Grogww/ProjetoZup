@@ -2,7 +2,9 @@ const occurrencesService = require('../services/occurrencesService');
 const occurrenceMediaService = require('../services/occurrenceMediaService');
 const storage = require('../config/storage');
 
-const VALID_STATUSES = ['pending', 'in_progress', 'resolved', 'rejected', 'closed'];
+// Fonte da verdade dos status selecionáveis (definida no service a partir da
+// máquina de estados). Não inclui 'reopened', que foi descontinuado.
+const VALID_STATUSES = occurrencesService.OCCURRENCE_STATUSES;
 
 const parsePositiveInt = (value) => {
   const n = Number(value);
@@ -216,17 +218,26 @@ const updateStatus = async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid id' });
     }
 
+    if (!req.user || !Number.isInteger(req.user.id)) {
+      return res.status(401).json({ error: 'Authenticated user required' });
+    }
+
     const { status } = req.body || {};
     if (!VALID_STATUSES.includes(status)) {
       return res.status(400).json({ error: `status must be one of: ${VALID_STATUSES.join(', ')}` });
     }
 
-    const occurrence = await occurrencesService.updateOccurrenceStatus(id, status);
+    const occurrence = await occurrencesService.updateOccurrenceStatus(id, status, {
+      user: req.user,
+    });
     if (!occurrence) {
       return res.status(404).json({ error: 'Occurrence not found' });
     }
     res.json(occurrence);
   } catch (err) {
+    if (err.code === 'INVALID_STATUS_TRANSITION') {
+      return res.status(409).json({ error: err.message, details: err.details });
+    }
     next(err);
   }
 };
@@ -511,6 +522,23 @@ const listReopens = async (req, res, next) => {
   }
 };
 
+const listStatusHistory = async (req, res, next) => {
+  try {
+    const id = parsePositiveInt(req.params.id);
+    if (id === null) {
+      return res.status(400).json({ error: 'Invalid id' });
+    }
+
+    const history = await occurrencesService.getStatusHistory(id);
+    if (history === null) {
+      return res.status(404).json({ error: 'Occurrence not found' });
+    }
+    res.json(history);
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   list,
   nearby,
@@ -524,4 +552,5 @@ module.exports = {
   removeMedia,
   reopen,
   listReopens,
+  listStatusHistory,
 };
