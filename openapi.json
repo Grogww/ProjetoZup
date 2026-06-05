@@ -18,9 +18,121 @@
     { "name": "Neighborhoods", "description": "Bairros" },
     { "name": "Occurrences", "description": "Registro e gestão de ocorrências urbanas" },
     { "name": "Evaluations", "description": "Avaliações de ocorrências (upvote/downvote)" },
-    { "name": "Media", "description": "Anexos de mídia (fotos/vídeos) de ocorrências" }
+    { "name": "Media", "description": "Anexos de mídia (fotos/vídeos) de ocorrências" },
+    { "name": "Analytics", "description": "Métricas, dashboards e transparência da plataforma" }
   ],
   "paths": {
+    "/api/analytics/overview": {
+      "get": {
+        "tags": ["Analytics"],
+        "summary": "Visão geral dos dados da plataforma (RF29)",
+        "description": "KPIs globais. Aceita filtros opcionais. Público.",
+        "operationId": "analyticsOverview",
+        "parameters": [
+          { "$ref": "#/components/parameters/AnalyticsFrom" },
+          { "$ref": "#/components/parameters/AnalyticsTo" },
+          { "name": "category_id", "in": "query", "schema": { "type": "integer", "minimum": 1 } },
+          { "name": "neighborhood_id", "in": "query", "schema": { "type": "integer", "minimum": 1 } },
+          { "name": "status", "in": "query", "schema": { "$ref": "#/components/schemas/OccurrenceStatus" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resumo da plataforma",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AnalyticsOverview" } } }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/api/analytics/by-neighborhood": {
+      "get": {
+        "tags": ["Analytics"],
+        "summary": "Pendências e métricas por bairro (RF30)",
+        "description": "Agregação por bairro, incluindo o bucket sem bairro (neighborhood_id nulo). Público.",
+        "operationId": "analyticsByNeighborhood",
+        "parameters": [
+          { "$ref": "#/components/parameters/AnalyticsFrom" },
+          { "$ref": "#/components/parameters/AnalyticsTo" },
+          { "name": "category_id", "in": "query", "schema": { "type": "integer", "minimum": 1 } },
+          { "name": "status", "in": "query", "schema": { "$ref": "#/components/schemas/OccurrenceStatus" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Métricas por bairro",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/AnalyticsNeighborhood" } } } }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/api/analytics/heatmap": {
+      "get": {
+        "tags": ["Analytics"],
+        "summary": "Pontos para mapa de calor (RF31)",
+        "description": "Lista de pontos {lat,lng,weight} para renderizar o mapa de calor. Filtrável por bounding box, status e categoria, com limite de segurança. Público.",
+        "operationId": "analyticsHeatmap",
+        "parameters": [
+          { "name": "bbox", "in": "query", "description": "Bounding box: min_lng,min_lat,max_lng,max_lat", "schema": { "type": "string" }, "example": "-46.70,-23.60,-46.60,-23.50" },
+          { "name": "status", "in": "query", "schema": { "$ref": "#/components/schemas/OccurrenceStatus" } },
+          { "name": "category_id", "in": "query", "schema": { "type": "integer", "minimum": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 50000, "default": 5000 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pontos do mapa de calor",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/HeatmapPoint" } } } }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/api/analytics/response-time": {
+      "get": {
+        "tags": ["Analytics"],
+        "summary": "Tempo médio de resposta e resolução (RF32)",
+        "description": "Médias e medianas (em segundos) de tempo de resposta e de resolução. sample_size revela quantas ocorrências tinham o dado (o tempo de resposta só existe para ocorrências criadas após a adoção do histórico de status). group_by opcional retorna breakdown. Público.",
+        "operationId": "analyticsResponseTime",
+        "parameters": [
+          { "$ref": "#/components/parameters/AnalyticsFrom" },
+          { "$ref": "#/components/parameters/AnalyticsTo" },
+          { "name": "category_id", "in": "query", "schema": { "type": "integer", "minimum": 1 } },
+          { "name": "neighborhood_id", "in": "query", "schema": { "type": "integer", "minimum": 1 } },
+          { "name": "status", "in": "query", "schema": { "$ref": "#/components/schemas/OccurrenceStatus" } },
+          { "name": "group_by", "in": "query", "schema": { "type": "string", "enum": ["category", "neighborhood", "month"] } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tempos de resposta/resolução",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResponseTimeSummary" } } }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/api/analytics/by-organization": {
+      "get": {
+        "tags": ["Analytics"],
+        "summary": "Eficiência por órgão responsável (RF33)",
+        "description": "Métricas de eficiência por órgão, incluindo o bucket sem órgão (organization_id nulo). Requer autenticação e papel admin.",
+        "operationId": "analyticsByOrganization",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "$ref": "#/components/parameters/AnalyticsFrom" },
+          { "$ref": "#/components/parameters/AnalyticsTo" },
+          { "name": "category_id", "in": "query", "schema": { "type": "integer", "minimum": 1 } },
+          { "name": "neighborhood_id", "in": "query", "schema": { "type": "integer", "minimum": 1 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Métricas por órgão",
+            "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/AnalyticsOrganization" } } } }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "tags": ["Health"],
@@ -1102,6 +1214,18 @@
         "required": true,
         "schema": { "type": "integer", "minimum": 1 },
         "example": 1
+      },
+      "AnalyticsFrom": {
+        "name": "from",
+        "in": "query",
+        "description": "Data inicial (inclusive) sobre created_at. Ex.: 2026-01-01",
+        "schema": { "type": "string", "format": "date" }
+      },
+      "AnalyticsTo": {
+        "name": "to",
+        "in": "query",
+        "description": "Data final (inclusive) sobre created_at. Ex.: 2026-12-31",
+        "schema": { "type": "string", "format": "date" }
       }
     },
     "responses": {
@@ -1543,6 +1667,99 @@
           "vote_type": { "$ref": "#/components/schemas/EvaluationVoteType" },
           "created_at": { "type": "string", "format": "date-time" },
           "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "AnalyticsOverview": {
+        "type": "object",
+        "description": "Tempos em segundos (null quando não há amostra). Taxas null quando o denominador é zero.",
+        "properties": {
+          "total_occurrences": { "type": "integer" },
+          "distinct_problems": { "type": "integer", "description": "Problemas distintos (agrupando cadeias de reabertura pela raiz)." },
+          "by_status_group": {
+            "type": "object",
+            "properties": {
+              "open": { "type": "integer" },
+              "resolved": { "type": "integer" },
+              "closed_unresolved": { "type": "integer" }
+            }
+          },
+          "resolution_rate": { "type": "number", "nullable": true },
+          "avg_response_seconds": { "type": "integer", "nullable": true },
+          "avg_resolution_seconds": { "type": "integer", "nullable": true },
+          "recurrence": {
+            "type": "object",
+            "properties": {
+              "reopened_problems": { "type": "integer" },
+              "recurrence_rate": { "type": "number", "nullable": true }
+            }
+          },
+          "active_neighborhoods": { "type": "integer" },
+          "top_categories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "category_id": { "type": "integer" },
+                "name": { "type": "string" },
+                "count": { "type": "integer" }
+              }
+            }
+          }
+        }
+      },
+      "AnalyticsNeighborhood": {
+        "type": "object",
+        "properties": {
+          "neighborhood_id": { "type": "integer", "nullable": true, "description": "Nulo = bucket \"sem bairro\"." },
+          "name": { "type": "string", "nullable": true },
+          "center_point": { "allOf": [{ "$ref": "#/components/schemas/GeoJSONPoint" }], "nullable": true },
+          "total": { "type": "integer" },
+          "open": { "type": "integer" },
+          "resolved": { "type": "integer" },
+          "closed_unresolved": { "type": "integer" },
+          "avg_resolution_seconds": { "type": "integer", "nullable": true },
+          "population_estimate": { "type": "integer", "nullable": true },
+          "per_capita": { "type": "number", "nullable": true }
+        }
+      },
+      "HeatmapPoint": {
+        "type": "object",
+        "properties": {
+          "lat": { "type": "number" },
+          "lng": { "type": "number" },
+          "weight": { "type": "integer" }
+        }
+      },
+      "ResponseTimeSummary": {
+        "type": "object",
+        "properties": {
+          "avg_response_seconds": { "type": "integer", "nullable": true },
+          "median_response_seconds": { "type": "integer", "nullable": true },
+          "avg_resolution_seconds": { "type": "integer", "nullable": true },
+          "median_resolution_seconds": { "type": "integer", "nullable": true },
+          "sample_size_response": { "type": "integer" },
+          "sample_size_resolution": { "type": "integer" },
+          "group_by": { "type": "string", "enum": ["category", "neighborhood", "month"], "description": "Presente apenas quando group_by é informado." },
+          "breakdown": {
+            "type": "array",
+            "description": "Presente apenas quando group_by é informado.",
+            "items": { "type": "object", "additionalProperties": true }
+          }
+        }
+      },
+      "AnalyticsOrganization": {
+        "type": "object",
+        "properties": {
+          "organization_id": { "type": "integer", "nullable": true, "description": "Nulo = bucket \"sem órgão atribuído\"." },
+          "name": { "type": "string", "nullable": true },
+          "assigned_total": { "type": "integer" },
+          "resolved": { "type": "integer" },
+          "open": { "type": "integer" },
+          "backlog_open": { "type": "integer" },
+          "resolution_rate": { "type": "number", "nullable": true },
+          "avg_response_seconds": { "type": "integer", "nullable": true },
+          "avg_resolution_seconds": { "type": "integer", "nullable": true },
+          "reopened_after_resolution": { "type": "integer" }
         }
       }
     }

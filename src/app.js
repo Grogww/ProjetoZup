@@ -7,6 +7,7 @@ const neighborhoodsRoutes = require('./routes/neighborhoods');
 const categoriesRoutes = require('./routes/categories');
 const subcategoriesRoutes = require('./routes/subcategories');
 const usersRoutes = require('./routes/usersRoutes');
+const analyticsRoutes = require('./routes/analyticsRoutes');
 const cors = require('cors');
 const storage = require('./config/storage');
 
@@ -34,5 +35,7 @@ app.use('/api', categoriesRoutes);
 app.use('/api', subcategoriesRoutes);
 
 app.use('/api', usersRoutes);
+
+app.use('/api', analyticsRoutes);
 
 module.exports = app;
