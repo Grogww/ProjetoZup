@@ -343,8 +343,10 @@
       },
       "post": {
         "tags": ["Categories"],
-        "summary": "Criar categoria",
+        "summary": "Criar categoria (admin)",
+        "description": "Requer autenticação e papel admin.",
         "operationId": "createCategory",
+        "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
@@ -352,6 +354,7 @@
               "schema": { "$ref": "#/components/schemas/CategoryCreateInput" },
               "example": {
                 "name": "Iluminação pública",
+                "slug": "iluminacao-publica",
                 "description": "Problemas relacionados à iluminação de vias e espaços públicos",
                 "icon": "lightbulb",
                 "color": "#FFC107",
@@ -368,6 +371,8 @@
             }
           },
           "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
           "409": { "$ref": "#/components/responses/Conflict" }
         }
       }
@@ -389,13 +394,46 @@
           "404": { "$ref": "#/components/responses/NotFound" }
         }
       },
+      "patch": {
+        "tags": ["Categories"],
+        "summary": "Atualizar categoria (admin)",
+        "description": "Atualização parcial. Requer autenticação e papel admin.",
+        "operationId": "updateCategory",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CategoryUpdateInput" },
+              "example": { "icon": "wb_incandescent", "color": "#FFB300" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Categoria atualizada",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Category" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      },
       "delete": {
         "tags": ["Categories"],
-        "summary": "Remover categoria",
+        "summary": "Remover categoria (admin)",
+        "description": "Requer autenticação e papel admin.",
         "operationId": "deleteCategory",
+        "security": [{ "bearerAuth": [] }],
         "responses": {
           "204": { "description": "Removida" },
           "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
           "404": { "$ref": "#/components/responses/NotFound" },
           "409": { "$ref": "#/components/responses/Conflict" }
         }
@@ -419,18 +457,21 @@
       },
       "post": {
         "tags": ["Subcategories"],
-        "summary": "Criar subcategoria",
+        "summary": "Criar subcategoria (admin)",
+        "description": "Requer autenticação e papel admin.",
         "operationId": "createSubcategory",
+        "security": [{ "bearerAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": { "$ref": "#/components/schemas/SubcategoryCreateInput" },
               "example": {
-                "category_id": 1,
+                "category_id": 3,
                 "name": "Poste queimado",
+                "slug": "poste-queimado",
                 "description": "Poste de iluminação com lâmpada queimada",
-                "icon": "bulb-off",
+                "icon": "lightbulb",
                 "is_active": true
               }
             }
@@ -444,6 +485,8 @@
             }
           },
           "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
           "404": { "$ref": "#/components/responses/NotFound" },
           "409": { "$ref": "#/components/responses/Conflict" }
         }
@@ -466,13 +509,46 @@
           "404": { "$ref": "#/components/responses/NotFound" }
         }
       },
+      "patch": {
+        "tags": ["Subcategories"],
+        "summary": "Atualizar subcategoria (admin)",
+        "description": "Atualização parcial. Requer autenticação e papel admin. Trocar category_id/name/slug revalida a consistência (categoria existente; nome/slug únicos na categoria-alvo).",
+        "operationId": "updateSubcategory",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SubcategoryUpdateInput" },
+              "example": { "icon": "wb_incandescent", "is_active": false }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Subcategoria atualizada",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Subcategory" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      },
       "delete": {
         "tags": ["Subcategories"],
-        "summary": "Remover subcategoria",
+        "summary": "Remover subcategoria (admin)",
+        "description": "Requer autenticação e papel admin.",
         "operationId": "deleteSubcategory",
+        "security": [{ "bearerAuth": [] }],
         "responses": {
           "204": { "description": "Removida" },
           "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
           "404": { "$ref": "#/components/responses/NotFound" },
           "409": { "$ref": "#/components/responses/Conflict" }
         }
@@ -1201,8 +1277,9 @@
         "properties": {
           "id": { "type": "integer" },
           "name": { "type": "string", "maxLength": 100 },
+          "slug": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "maxLength": 120, "description": "Chave textual estável para uso no front (única globalmente)." },
           "description": { "type": "string", "nullable": true },
-          "icon": { "type": "string", "maxLength": 50, "nullable": true },
+          "icon": { "type": "string", "maxLength": 50, "nullable": true, "description": "Identificador nominal do ícone (ex.: nome em uma biblioteca de ícones do front). Não é um arquivo." },
           "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$", "nullable": true },
           "is_active": { "type": "boolean" },
           "created_at": { "type": "string", "format": "date-time" },
@@ -1214,10 +1291,24 @@
         "required": ["name"],
         "properties": {
           "name": { "type": "string", "maxLength": 100 },
+          "slug": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "maxLength": 120, "description": "Opcional. Se omitido, é derivado do nome (sem acentos)." },
           "description": { "type": "string" },
           "icon": { "type": "string", "maxLength": 50 },
           "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
           "is_active": { "type": "boolean", "default": true }
+        }
+      },
+      "CategoryUpdateInput": {
+        "type": "object",
+        "description": "Atualização parcial: envie apenas os campos a alterar. description/icon/color aceitam null para limpar.",
+        "minProperties": 1,
+        "properties": {
+          "name": { "type": "string", "maxLength": 100 },
+          "slug": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "maxLength": 120 },
+          "description": { "type": "string", "nullable": true },
+          "icon": { "type": "string", "maxLength": 50, "nullable": true },
+          "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$", "nullable": true },
+          "is_active": { "type": "boolean" }
         }
       },
       "Subcategory": {
@@ -1226,8 +1317,9 @@
           "id": { "type": "integer" },
           "category_id": { "type": "integer" },
           "name": { "type": "string", "maxLength": 100 },
+          "slug": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "maxLength": 120, "description": "Chave textual estável para uso no front (única dentro da categoria)." },
           "description": { "type": "string", "nullable": true },
-          "icon": { "type": "string", "maxLength": 50, "nullable": true },
+          "icon": { "type": "string", "maxLength": 50, "nullable": true, "description": "Identificador nominal do ícone (não é um arquivo)." },
           "is_active": { "type": "boolean" },
           "created_at": { "type": "string", "format": "date-time" },
           "updated_at": { "type": "string", "format": "date-time" }
@@ -1239,9 +1331,23 @@
         "properties": {
           "category_id": { "type": "integer", "minimum": 1 },
           "name": { "type": "string", "maxLength": 100 },
+          "slug": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "maxLength": 120, "description": "Opcional. Se omitido, é derivado do nome (sem acentos)." },
           "description": { "type": "string" },
           "icon": { "type": "string", "maxLength": 50 },
           "is_active": { "type": "boolean", "default": true }
+        }
+      },
+      "SubcategoryUpdateInput": {
+        "type": "object",
+        "description": "Atualização parcial: envie apenas os campos a alterar. Trocar category_id/name/slug revalida a consistência (categoria existente; nome/slug únicos na categoria).",
+        "minProperties": 1,
+        "properties": {
+          "category_id": { "type": "integer", "minimum": 1 },
+          "name": { "type": "string", "maxLength": 100 },
+          "slug": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "maxLength": 120 },
+          "description": { "type": "string", "nullable": true },
+          "icon": { "type": "string", "maxLength": 50, "nullable": true },
+          "is_active": { "type": "boolean" }
         }
       },
       "NeighborhoodSummary": {
