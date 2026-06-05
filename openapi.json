@@ -683,6 +683,26 @@
         }
       }
     },
+    "/api/neighborhoods/locate": {
+      "get": {
+        "tags": ["Neighborhoods"],
+        "summary": "Geofencing: bairro que contém um ponto",
+        "description": "Resolve uma coordenada (lat/lng) para o bairro cujo polígono a contém (ST_Contains, SRID 4326). Retorna 404 se o ponto não cair em nenhum bairro cadastrado. Público.",
+        "operationId": "locateNeighborhood",
+        "parameters": [
+          { "name": "lat", "in": "query", "required": true, "schema": { "type": "number", "minimum": -90, "maximum": 90 } },
+          { "name": "lng", "in": "query", "required": true, "schema": { "type": "number", "minimum": -180, "maximum": 180 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bairro que contém o ponto",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NeighborhoodSummary" } } }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
     "/api/neighborhoods/{id}": {
       "parameters": [{ "$ref": "#/components/parameters/IdPath" }],
       "get": {
@@ -1585,7 +1605,7 @@
           "address": { "type": "string" },
           "category_id": { "type": "integer", "minimum": 1 },
           "subcategory_id": { "type": "integer", "minimum": 1, "nullable": true },
-          "neighborhood_id": { "type": "integer", "minimum": 1, "nullable": true },
+          "neighborhood_id": { "type": "integer", "minimum": 1, "nullable": true, "description": "Opcional. Se omitido, é derivado por geofencing a partir da localização (point-in-polygon); fica nulo se o ponto não cair em nenhum bairro." },
           "assigned_organization_id": { "type": "integer", "minimum": 1, "nullable": true },
           "parent_occurrence_id": { "type": "integer", "minimum": 1, "nullable": true },
           "status": { "$ref": "#/components/schemas/OccurrenceStatus" }

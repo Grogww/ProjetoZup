@@ -1,5 +1,15 @@
 const neighborhoodsService = require('../services/neighborhoodsService');
 
+const parseLatitude = (value) => {
+  const n = Number(value);
+  return Number.isFinite(n) && n >= -90 && n <= 90 ? n : null;
+};
+
+const parseLongitude = (value) => {
+  const n = Number(value);
+  return Number.isFinite(n) && n >= -180 && n <= 180 ? n : null;
+};
+
 const list = async (req, res, next) => {
   try {
     const neighborhoods = await neighborhoodsService.listNeighborhoods();
@@ -27,6 +37,30 @@ const getById = async (req, res, next) => {
   }
 };
 
+// Geofencing: GET /neighborhoods/locate?lat=&lng= → bairro que contém o ponto.
+const locate = async (req, res, next) => {
+  try {
+    const latitude = parseLatitude(req.query.lat ?? req.query.latitude);
+    const longitude = parseLongitude(req.query.lng ?? req.query.longitude);
+
+    if (latitude === null) {
+      return res.status(400).json({ error: 'lat is required and must be between -90 and 90' });
+    }
+    if (longitude === null) {
+      return res.status(400).json({ error: 'lng is required and must be between -180 and 180' });
+    }
+
+    const neighborhood = await neighborhoodsService.locateByPoint({ latitude, longitude });
+    if (!neighborhood) {
+      return res.status(404).json({ error: 'No neighborhood contains this point' });
+    }
+
+    res.json(neighborhood);
+  } catch (err) {
+    next(err);
+  }
+};
+
 const listOccurrences = async (req, res, next) => {
   try {
     const id = Number(req.params.id);
@@ -45,4 +79,4 @@ const listOccurrences = async (req, res, next) => {
   }
 };
 
-module.exports = { list, getById, listOccurrences };
+module.exports = { list, locate, getById, listOccurrences };

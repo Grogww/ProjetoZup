@@ -91,6 +91,11 @@ const createOccurrence = async (data) => {
       err.code = 'NEIGHBORHOOD_NOT_FOUND';
       throw err;
     }
+  } else {
+    // Geofencing: bairro não informado -> deriva da localização (point-in-polygon).
+    // Fica null se o ponto não cair em nenhum bairro cadastrado.
+    const located = await neighborhoodsModel.findByPoint(data.longitude, data.latitude);
+    data.neighborhood_id = located ? located.id : null;
   }
 
   if (data.parent_occurrence_id !== undefined && data.parent_occurrence_id !== null) {

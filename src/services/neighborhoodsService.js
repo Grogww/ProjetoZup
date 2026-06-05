@@ -16,8 +16,14 @@ const getNeighborhoodOccurrences = async (id) => {
   return occurrencesModel.findAll({ neighborhood_id: id });
 };
 
+// Geofencing: resolve um ponto (lat/lng) para o bairro que o contém.
+const locateByPoint = async ({ latitude, longitude }) => {
+  return neighborhoodsModel.findByPoint(longitude, latitude);
+};
+
 module.exports = {
   listNeighborhoods,
   getNeighborhoodById,
   getNeighborhoodOccurrences,
+  locateByPoint,
 };

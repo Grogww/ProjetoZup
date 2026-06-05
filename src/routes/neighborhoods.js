@@ -4,6 +4,7 @@ const neighborhoodsController = require('../controllers/neighborhoodsController'
 const router = Router();
 
 router.get('/neighborhoods', neighborhoodsController.list);
+router.get('/neighborhoods/locate', neighborhoodsController.locate);
 router.get('/neighborhoods/:id', neighborhoodsController.getById);
 router.get('/neighborhoods/:id/occurrences', neighborhoodsController.listOccurrences);
 
