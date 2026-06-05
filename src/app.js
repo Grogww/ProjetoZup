@@ -8,6 +8,7 @@ const categoriesRoutes = require('./routes/categories');
 const subcategoriesRoutes = require('./routes/subcategories');
 const usersRoutes = require('./routes/usersRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
+const organizationsRoutes = require('./routes/organizations');
 const cors = require('cors');
 const storage = require('./config/storage');
 
@@ -37,5 +38,7 @@ app.use('/api', subcategoriesRoutes);
 app.use('/api', usersRoutes);
 
 app.use('/api', analyticsRoutes);
+
+app.use('/api', organizationsRoutes);
 
 module.exports = app;

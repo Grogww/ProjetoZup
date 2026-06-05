@@ -19,9 +19,27 @@
     { "name": "Occurrences", "description": "Registro e gestão de ocorrências urbanas" },
     { "name": "Evaluations", "description": "Avaliações de ocorrências (upvote/downvote)" },
     { "name": "Media", "description": "Anexos de mídia (fotos/vídeos) de ocorrências" },
-    { "name": "Analytics", "description": "Métricas, dashboards e transparência da plataforma" }
+    { "name": "Analytics", "description": "Métricas, dashboards e transparência da plataforma" },
+    { "name": "Organizations", "description": "Órgãos responsáveis pelas ocorrências" }
   ],
   "paths": {
+    "/api/organizations": {
+      "get": {
+        "tags": ["Organizations"],
+        "summary": "Listar órgãos",
+        "operationId": "listOrganizations",
+        "responses": {
+          "200": {
+            "description": "Lista de órgãos",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Organization" } }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/analytics/overview": {
       "get": {
         "tags": ["Analytics"],
@@ -1685,6 +1703,19 @@
           "occurrence_id": { "type": "integer" },
           "user_id": { "type": "integer" },
           "vote_type": { "$ref": "#/components/schemas/EvaluationVoteType" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Organization": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string", "maxLength": 150 },
+          "description": { "type": "string", "nullable": true },
+          "contact_email": { "type": "string", "maxLength": 255, "nullable": true },
+          "contact_phone": { "type": "string", "maxLength": 20, "nullable": true },
+          "is_active": { "type": "boolean" },
           "created_at": { "type": "string", "format": "date-time" },
           "updated_at": { "type": "string", "format": "date-time" }
         }
