@@ -278,6 +278,31 @@ O fuso horário esperado pela sessão do banco é **`America/Sao_Paulo`** (Bras�
 
 A conexão usa um **pool** (`pg.Pool`) e, ao iniciar, a aplicação faz um `SELECT NOW()` de teste, logando "Conectado ao PostgreSQL" em caso de sucesso.
 
+### Acesso de demonstração (dados sanitizados)
+
+O backup público (`db/init/zup_backup.backup`) é **sanitizado**: os dados pessoais reais dos usuários (nome, e-mail, CPF e senha) são substituídos por valores fictícios — porém **válidos** para passar nas validações do sistema (o login exige um CPF com dígitos verificadores corretos).
+
+- **Senha de todos os usuários:** `Demo@1234`
+- **CPF (login):** gerado de forma determinística por `id`. Os primeiros:
+
+  | id | CPF (login)      |
+  | -- | ---------------- |
+  | 1  | `001.234.567-97` |
+  | 2  | `002.469.134-87` |
+  | 3  | `003.703.701-39` |
+
+A lista completa (CPF, e-mail e **role** de cada usuário) é impressa ao final da sanitização — use um CPF com role `admin` para acessar as rotas administrativas.
+
+### Regenerar o backup público (mantenedores)
+
+Os backups **oficiais com dados reais** ficam em `db/init/history/` e **não vão para o repositório** (ignorados no `.gitignore`). Sempre que esses dados mudarem, regenere o backup público sanitizado com **um único comando** (Docker em execução, a partir da raiz do projeto):
+
+```powershell
+./db/regenerate-public-backup.ps1
+```
+
+O script sobe um container PostGIS temporário e isolado, restaura o backup oficial mais recente de `history/`, executa `db/sanitize.sql` e gera o novo `db/init/zup_backup.backup` — removendo o container ao final. Use `-OfficialBackup <arquivo>` para escolher outra origem. **Só** o `db/init/zup_backup.backup` (sanitizado) deve ser commitado.
+
 ---
 
 ## Autenticação

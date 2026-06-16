@@ -1,6 +1,19 @@
 .env
 node_modules
-db
 uploads
 
 CLAUDE.md
+
+# Banco de dados
+# Ignora tudo em db/ por padrão (evita vazar dados reais)...
+db/*
+db/init/*
+# ...mas versiona os scripts de bootstrap e SÓ o backup público sanitizado.
+!db/_CreateExtensionPostGIS.sql
+!db/restore.sh
+!db/sanitize.sql
+!db/regenerate-public-backup.ps1
+!db/init/
+!db/init/zup_backup.backup
+# NUNCA versionar os backups oficiais com dados reais.
+db/init/history/
