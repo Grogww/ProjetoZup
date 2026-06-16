@@ -282,16 +282,25 @@ A conexão usa um **pool** (`pg.Pool`) e, ao iniciar, a aplicação faz um `SELE
 
 O backup público (`db/init/zup_backup.backup`) é **sanitizado**: os dados pessoais reais dos usuários (nome, e-mail, CPF e senha) são substituídos por valores fictícios — porém **válidos** para passar nas validações do sistema (o login exige um CPF com dígitos verificadores corretos).
 
-- **Senha de todos os usuários:** `Demo@1234`
-- **CPF (login):** gerado de forma determinística por `id`. Os primeiros:
+O login é por **CPF + senha**. Todos os usuários do backup de demonstração têm **role `admin`** (acesso total, inclusive às rotas administrativas) e a **mesma senha**:
 
-  | id | CPF (login)      |
-  | -- | ---------------- |
-  | 1  | `001.234.567-97` |
-  | 2  | `002.469.134-87` |
-  | 3  | `003.703.701-39` |
+| Usuário     | CPF (login)      | Senha       | Role    |
+| ----------- | ---------------- | ----------- | ------- |
+| `Usuário 1` | `001.234.567-97` | `Demo@1234` | `admin` |
+| `Usuário 2` | `002.469.134-87` | `Demo@1234` | `admin` |
+| `Usuário 3` | `003.703.701-39` | `Demo@1234` | `admin` |
 
-A lista completa (CPF, e-mail e **role** de cada usuário) é impressa ao final da sanitização — use um CPF com role `admin` para acessar as rotas administrativas.
+> O CPF pode ser enviado com ou sem máscara (ex.: `001.234.567-97` ou `00123456797`). A senha é a mesma para os três.
+
+Exemplo de login:
+
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{ "cpf": "00123456797", "password": "Demo@1234" }'
+```
+
+Esses valores são gerados de forma determinística pela sanitização (CPF derivado do `id`, com dígitos verificadores válidos). A lista completa é reimpressa ao final do script de regeneração.
 
 ### Regenerar o backup público (mantenedores)
 
