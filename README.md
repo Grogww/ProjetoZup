@@ -1,8 +1,43 @@
 # ProjetoZup
 
+> ## 🎓 Para avaliação — comece por aqui
+> **A documentação principal da entrega está na pasta [`docs/`](./docs/README.md).**
+> É lá que estão os entregáveis avaliados: **regras de negócio, requisitos (RF/RNF), plano de
+> projeto, perfis e permissões, modelo de dados e diagramas**.
+>
+> 👉 **Acesso rápido: [`docs/README.md`](./docs/README.md)** (índice de toda a documentação).
+>
+> Este README serve como **visão geral, referência da API e instruções de execução**.
+
+---
+
 API REST para **gestão de infraestrutura urbana** — uma plataforma de relato e acompanhamento de problemas urbanos (buracos, iluminação, lixo, etc.) no estilo "cidadão reporta, o poder público resolve". Os cidadãos registram ocorrências georreferenciadas, votam nas que consideram prioritárias e acompanham a evolução do status; órgãos públicos e administradores fazem a triagem, atualizam o andamento e analisam indicadores de eficiência.
 
 Construída em **Node.js + Express 5** sobre **PostgreSQL + PostGIS**, com autenticação JWT, upload de mídias, geolocalização (geofencing e busca por proximidade), máquina de estados de status com histórico e um módulo completo de **analytics/transparência**.
+
+> Conhecida no domínio como **ZUP (Zeladoria Urbana Participativa)**, plataforma cívica para o município de **Videira (SC)**.
+
+---
+
+## 📚 Documentação de engenharia (material de avaliação)
+
+> ⭐ **Professores:** os documentos abaixo são os entregáveis avaliados da disciplina.
+> O índice completo fica em **[`docs/README.md`](./docs/README.md)**.
+
+Este README cobre **visão geral, API e como rodar**. A documentação detalhada da entrega
+(regras de negócio, requisitos, plano de projeto, perfis/permissões, modelo de dados e diagramas)
+está em [`docs/`](./docs/README.md):
+
+| Documento | Conteúdo |
+|-----------|----------|
+| [1. Regras de Negócio](./docs/01-regras-de-negocio.md) | `RN-xx`, máquina de estados, geofencing, anti-duplicidade, reabertura |
+| [2. Requisitos](./docs/02-requisitos.md) | `RF-xx`, `RNF-xx` com rastreabilidade até o endpoint |
+| [3. Plano de Projeto](./docs/03-plano-de-projeto.md) | Escopo, cronograma (Gantt), marcos, estado atual, roadmap |
+| [4. Perfis e Permissões](./docs/04-perfis-e-permissoes.md) | Papéis e matriz de permissões |
+| [5. Backend](./docs/05-backend.md) | Camadas, autenticação, variáveis de ambiente, ADRs |
+| [6. Frontend](./docs/06-frontend.md) | Telas, navegação e mapa (especificação — repo separado) |
+| [7. Modelo de Dados](./docs/07-modelo-de-dados.md) | Diagrama ER e decisões geoespaciais |
+| [8. Diagramas](./docs/08-diagramas.md) | Casos de uso, sequência e arquitetura |
 
 ---
 
