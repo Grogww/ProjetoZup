@@ -35,7 +35,7 @@ está em [`docs/`](./docs/README.md):
 | [3. Plano de Projeto](./docs/03-plano-de-projeto.md) | Escopo, cronograma (Gantt), marcos, estado atual, roadmap |
 | [4. Perfis e Permissões](./docs/04-perfis-e-permissoes.md) | Papéis e matriz de permissões |
 | [5. Backend](./docs/05-backend.md) | Camadas, autenticação, variáveis de ambiente, ADRs |
-| [6. Frontend](./docs/06-frontend.md) | Telas, navegação e mapa (especificação — repo separado) |
+| [6. Frontend](./docs/06-frontend.md) | Stack, rotas/telas, integração com a API e mapa (repo separado) |
 | [7. Modelo de Dados](./docs/07-modelo-de-dados.md) | Diagrama ER e decisões geoespaciais |
 | [8. Diagramas](./docs/08-diagramas.md) | Casos de uso, sequência e arquitetura |
 

@@ -33,7 +33,7 @@ Convenção de identificadores para rastreabilidade:
 | 3 | [Plano de Projeto](./03-plano-de-projeto.md) | **Prioritário** | Escopo, cronograma (Gantt), marcos, estado atual, roadmap |
 | 4 | [Perfis e Permissões](./04-perfis-e-permissoes.md) | **Prioritário** | Papéis, matriz de permissões, como a autorização é aplicada |
 | 5 | [Documentação Técnica do Backend](./05-backend.md) | Importante | Camadas, API, autenticação, variáveis de ambiente, ADRs |
-| 6 | [Documentação Técnica do Frontend](./06-frontend.md) | Importante | Telas, navegação, mapa, identidade visual (especificação) |
+| 6 | [Documentação Técnica do Frontend](./06-frontend.md) | Importante | Stack, rotas/telas, integração com a API, mapa e identidade visual (repo separado) |
 | 7 | [Modelo de Dados](./07-modelo-de-dados.md) | Importante | Diagrama ER, decisões geoespaciais, integridade referencial |
 | 8 | [Diagramas](./08-diagramas.md) | Apoio | Casos de uso, ER, estados, sequência, arquitetura |
 
