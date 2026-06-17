@@ -326,12 +326,22 @@ const remove = async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid id' });
     }
 
-    const deleted = await occurrencesService.deleteOccurrence(id);
+    if (!req.user || !Number.isInteger(req.user.id)) {
+      return res.status(401).json({ error: 'Authenticated user required' });
+    }
+
+    const deleted = await occurrencesService.deleteOccurrence(id, { user: req.user });
     if (!deleted) {
       return res.status(404).json({ error: 'Occurrence not found' });
     }
     res.status(204).send();
   } catch (err) {
+    if (err.code === 'FORBIDDEN') {
+      return res.status(403).json({ error: err.message });
+    }
+    if (err.code === 'EDIT_WINDOW_EXPIRED') {
+      return res.status(403).json({ error: err.message });
+    }
     if (err.code === 'OCCURRENCE_IN_USE') {
       return res.status(409).json({ error: err.message });
     }

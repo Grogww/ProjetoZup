@@ -212,9 +212,23 @@ const updateOccurrence = async (id, patch, { user } = {}) => {
   return occurrencesModel.update(id, patch);
 };
 
-const deleteOccurrence = async (id) => {
+// Exclusão de ocorrência: somente o autor ou um admin podem excluir. O autor
+// só pode excluir dentro da janela de 24h a partir da criação (ver
+// occurrenceEditWindow); o admin pode excluir a qualquer momento.
+const deleteOccurrence = async (id, { user } = {}) => {
   const existing = await occurrencesModel.findById(id);
   if (!existing) return false;
+
+  const isAuthor = user && existing.author_id === user.id;
+  const isAdmin = user && user.role === 'admin';
+  if (!isAuthor && !isAdmin) {
+    const err = new Error('Only the occurrence author or an admin can delete it');
+    err.code = 'FORBIDDEN';
+    throw err;
+  }
+  if (!isAdmin) {
+    assertWithinEditWindow(existing);
+  }
 
   // O CASCADE remove as linhas de occurrence_media, mas não os bytes em disco.
   // Coletamos as chaves antes de excluir e apagamos os arquivos depois.
