@@ -133,7 +133,6 @@ const create = async (req, res, next) => {
       neighborhood_id,
       assigned_organization_id,
       parent_occurrence_id,
-      status,
     } = req.body || {};
 
     if (typeof title !== 'string' || title.trim().length === 0) {
@@ -174,10 +173,6 @@ const create = async (req, res, next) => {
       return res.status(400).json({ error: 'address must be a string' });
     }
 
-    if (status !== undefined && !VALID_STATUSES.includes(status)) {
-      return res.status(400).json({ error: `status must be one of: ${VALID_STATUSES.join(', ')}` });
-    }
-
     if (!req.user || !Number.isInteger(req.user.id)) {
       return res.status(401).json({ error: 'Authenticated user required' });
     }
@@ -194,7 +189,6 @@ const create = async (req, res, next) => {
       author_id: req.user.id,
       assigned_organization_id: assigned_organization_id ?? null,
       parent_occurrence_id: parent_occurrence_id ?? null,
-      status,
     });
 
     res.status(201).json(occurrence);

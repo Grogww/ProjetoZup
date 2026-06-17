@@ -793,6 +793,7 @@
       "post": {
         "tags": ["Occurrences"],
         "summary": "Registrar ocorrência com geolocalização (RF11)",
+        "description": "Toda ocorrência é criada com status `pending`; o status não pode ser definido no cadastro e evolui apenas via PATCH /api/occurrences/{id}/status, seguindo a máquina de estados.",
         "operationId": "createOccurrence",
         "security": [{ "bearerAuth": [] }],
         "requestBody": {
@@ -1625,8 +1626,7 @@
           "subcategory_id": { "type": "integer", "minimum": 1, "nullable": true },
           "neighborhood_id": { "type": "integer", "minimum": 1, "nullable": true, "description": "Opcional. Se omitido, é derivado por geofencing a partir da localização (point-in-polygon); fica nulo se o ponto não cair em nenhum bairro." },
           "assigned_organization_id": { "type": "integer", "minimum": 1, "nullable": true },
-          "parent_occurrence_id": { "type": "integer", "minimum": 1, "nullable": true },
-          "status": { "$ref": "#/components/schemas/OccurrenceStatus" }
+          "parent_occurrence_id": { "type": "integer", "minimum": 1, "nullable": true }
         }
       },
       "OccurrenceStatusUpdateInput": {
