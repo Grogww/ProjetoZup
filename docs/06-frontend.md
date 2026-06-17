@@ -56,7 +56,7 @@ flowchart TD
 | Minha Cidade | `GET /neighborhoods/:id`, `/neighborhoods/:id/occurrences` | Polígono do bairro no mapa. |
 | Meu Painel | `GET /occurrences?author_id=`, `GET /users/me` | Minhas ocorrências. |
 | Dashboards / Transparência | `GET /analytics/*` | KPIs, por bairro, heatmap, tempos. |
-| Validações | ⚠️ roadmap (RN-17) | Depende de validação comunitária. |
+| Validações | *(Roadmap)* (RN-16) | Validação por relevância via votação. |
 
 ## 6.4 Integração com a API (cliente)
 

@@ -77,7 +77,7 @@ O projeto já opera com **JWT/CPF real**. O `mockAuth` permanece como **atalho d
 desenvolvimento**: quando `USE_MOCK_AUTH=true`, `auth` injeta um usuário admin fake e dispensa o
 token — útil para testar rotas protegidas sem montar sessão. A transição foi preparada
 isolando essa decisão **dentro do middleware `auth`** (um único ponto), de modo que desligar o
-mock não exige tocar nas rotas. **`USE_MOCK_AUTH` nunca deve ser `true` em produção** (R-09 prevê
+mock não exige tocar nas rotas. **`USE_MOCK_AUTH` nunca deve ser `true` em produção** (R-08 prevê
 sua remoção).
 
 ## 5.4 Variáveis de ambiente
@@ -170,9 +170,10 @@ RN-14).
 **ADR-11 — Token de reset hasheado e de uso único.** Guardado como SHA-256 (não em claro), com
 expiração curta e rate limiting, e revogação do refresh token ao concluir o reset.
 
-> ⚠️ **A confirmar — reprojeção SIRGAS 2000 → WGS84.** A importação dos bairros (provavelmente a
-> partir de fonte oficial em SIRGAS 2000 / EPSG:4674) deve ter sido reprojetada para 4326. As
-> **tabelas de staging `bairros_raw`/`staging_bairros_sc`** (presentes no dump, já em 4326)
-> confirmam que **houve um ETL**, mas o SRID de origem e o passo de `ST_Transform` não estão
-> versionados — documentar o processo de importação e versionar o DDL/ETL (R-10). *(O DDL de
-> tabelas, FKs e índices já foi verificado via `pg_restore --schema-only`.)*
+> 📌 **Reprojeção SIRGAS 2000 → WGS84 (importação dos bairros).** As fronteiras dos bairros vieram
+> do **IBGE** em **SIRGAS 2000 (EPSG:4674)** e foram **reprojetadas para SRID 4326** com as funções
+> de transformação do PostGIS durante a importação — por isso todas as geometrias no banco já estão
+> em 4326. As **tabelas de staging `bairros_raw`/`staging_bairros_sc`** são resíduos desse ETL e
+> podem ser removidas do backup público. Versionar o script de importação em texto facilita auditar
+> o passo de reprojeção (R-09). *(O DDL de tabelas, FKs e índices foi verificado via
+> `pg_restore --schema-only`.)*

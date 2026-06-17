@@ -1,9 +1,8 @@
 # 7. Modelo de Dados
 
-> O schema é restaurado a partir de `db/init/zup_backup.backup` (dump binário). As colunas abaixo
-> foram inferidas do uso real nos `models/` e services. Onde a definição exata (ação de FK, índice,
-> constraint) só existe no dump, há `⚠️ A confirmar` e a recomendação de versionar o DDL em texto
-> (R-10).
+> O schema é restaurado a partir de `db/init/zup_backup.backup` (dump binário) e foi verificado via
+> `pg_restore --schema-only`. Recomenda-se ainda versionar o DDL em texto (`db/schema.sql`) para
+> auditar constraints e índices sem depender do dump (R-09).
 
 ## 7.1 Diagrama ER
 
@@ -172,9 +171,10 @@ geometry(MultiPolygon,4326)`, `neighborhoods.center_point geometry(Point,4326)`.
 
 > 📌 **`neighborhood_adjacency` existe no schema** (PK `(neighborhood_id, neighbor_id)`, CHECK de
 > não-reflexividade, ambas as FKs `ON DELETE CASCADE` para `neighborhoods`), mas **nenhum código
-> a utiliza** ainda. A modelagem de dados da adjacência de bairros (base para a validação
-> comunitária — RN-17) **já está pronta**; falta a **lógica de aplicação** (ver
-> [Roadmap R-01/R-02](./03-plano-de-projeto.md)).
+> a utiliza**. Era a base da validação comunitária por adjacência prevista originalmente; como o
+> projeto passou a adotar **validação/priorização por votação** (RN-16), esta tabela ficou
+> **reservada** — pode ser reaproveitada no futuro, mas não é mais pré-requisito de nenhuma regra
+> ativa.
 
 > ⚠️ **Tabelas de staging no dump:** o backup ainda contém `bairros_raw` e `staging_bairros_sc`
 > (geometria `MultiPolygon,4326`, com índice GiST) — resíduos do ETL de importação dos bairros de
@@ -194,7 +194,7 @@ geometry(MultiPolygon,4326)`, `neighborhoods.center_point geometry(Point,4326)`.
 | `categories` / `subcategories` | Taxonomia das ocorrências (slug, ícone, cor, ativação). |
 | `neighborhoods` | Bairros de Videira com fronteira, ponto central e estimativa populacional (per capita no analytics). |
 | `organizations` | Órgãos responsáveis por atender ocorrências. |
-| `neighborhood_adjacency` | Pares de bairros adjacentes (grafo de vizinhança). **Existe no schema, mas ainda não usada por código** — base para a seleção de validadores da validação comunitária (RN-17). |
+| `neighborhood_adjacency` | Pares de bairros adjacentes (grafo de vizinhança). **Existe no schema, mas ainda não usada por código** — reservada; a validação passou a usar relevância por votação (RN-16). |
 
 ### Enums (PostgreSQL)
 
@@ -206,13 +206,75 @@ geometry(MultiPolygon,4326)`, `neighborhoods.center_point geometry(Point,4326)`.
 
 ### Views de analytics (no banco)
 
-- `v_occurrence_metrics` — uma linha por ocorrência com flags canônicas (`is_open`,
-  `is_resolved`, `is_closed_unresolved`), `problem_id = COALESCE(root_occurrence_id, id)`,
-  `response_seconds` (1ª transição saindo de `pending`) e `resolution_seconds`.
-- `v_heatmap_points` — `lat`, `lng`, `created_at`, `status`, `category_id` para o mapa de calor.
+- **`v_occurrence_metrics`** — uma linha por ocorrência, com os campos da própria `occurrences`
+  (categoria, subcategoria, bairro, órgão, status, datas, `score`, `location` etc.) acrescidos de:
+  - `problem_id = COALESCE(root_occurrence_id, id)` — agrupa a cadeia de reaberturas num único
+    problema lógico;
+  - flags canônicas `is_resolved`, `is_open` e `is_closed_unresolved`;
+  - `first_response_at` — primeira transição **saindo de** `pending` (menor `created_at` em
+    `occurrence_status_history` com `old_status IS NOT NULL`);
+  - `response_seconds` — segundos entre a criação (ajustada para `America/Sao_Paulo`) e a primeira
+    resposta;
+  - `resolution_seconds` — segundos entre a criação e `resolved_at`.
+- **`v_heatmap_points`** — projeção sobre `v_occurrence_metrics` para o mapa de calor: `id`,
+  `lat`/`lng` (de `ST_Y`/`ST_X` da geometria), `status`, `category_id`, `subcategory_id`,
+  `neighborhood_id`, `is_open`, `is_resolved`, `score`, `created_at` e `location`.
 
-> ⚠️ A confirmar: o SQL dessas views **não está versionado** no repositório (R-12). Foram
-> aplicadas diretamente no banco (ver memória do módulo de analytics).
+DDL das views (aplicado no banco; recomenda-se versioná-lo em `db/analytics_views.sql` — R-11):
+
+```sql
+CREATE OR REPLACE VIEW public.v_occurrence_metrics AS
+ SELECT o.id,
+    o.root_occurrence_id,
+    o.parent_occurrence_id,
+    o.category_id,
+    o.subcategory_id,
+    o.neighborhood_id,
+    o.assigned_organization_id,
+    o.status,
+    o.created_at,
+    o.resolved_at,
+    o.closed_at,
+    o.reopen_count,
+    o.score,
+    o.location,
+    COALESCE(o.root_occurrence_id, o.id) AS problem_id,
+    o.resolved_at IS NOT NULL AS is_resolved,
+    o.resolved_at IS NULL AND o.closed_at IS NULL AS is_open,
+    o.closed_at IS NOT NULL AND o.resolved_at IS NULL AS is_closed_unresolved,
+    fr.first_response_at,
+    CASE
+        WHEN fr.first_response_at IS NOT NULL
+        THEN EXTRACT(epoch FROM fr.first_response_at - (o.created_at AT TIME ZONE 'America/Sao_Paulo'))
+        ELSE NULL::numeric
+    END AS response_seconds,
+    CASE
+        WHEN o.resolved_at IS NOT NULL
+        THEN EXTRACT(epoch FROM o.resolved_at - o.created_at)
+        ELSE NULL::numeric
+    END AS resolution_seconds
+   FROM occurrences o
+   LEFT JOIN LATERAL (
+        SELECT min(h.created_at) AS first_response_at
+          FROM occurrence_status_history h
+         WHERE h.occurrence_id = o.id AND h.old_status IS NOT NULL
+   ) fr ON true;
+
+CREATE OR REPLACE VIEW public.v_heatmap_points AS
+ SELECT id,
+    st_y(location) AS lat,
+    st_x(location) AS lng,
+    status,
+    category_id,
+    subcategory_id,
+    neighborhood_id,
+    is_open,
+    is_resolved,
+    score,
+    created_at,
+    location
+   FROM v_occurrence_metrics m;
+```
 
 ## 7.3 Decisões geoespaciais
 
@@ -233,11 +295,11 @@ geometry(MultiPolygon,4326)`, `neighborhoods.center_point geometry(Point,4326)`.
 `neighborhoods.center_point` (`idx_neighborhoods_center`) — além de btree em `status`,
 `category_id`, `neighborhood_id`, `created_at DESC` etc. (RNF-01 atendido).
 
-> ⚠️ A confirmar (única pendência geoespacial): **reprojeção SIRGAS 2000 (EPSG:4674) → WGS84
-> (4326)** na importação dos bairros. As geometrias já estão em 4326 no banco; as tabelas de
-> staging `bairros_raw`/`staging_bairros_sc` (também em 4326) confirmam que **houve um ETL de
-> importação**, mas o SRID da **fonte original** e o passo de `ST_Transform` não estão
-> registrados no schema. Documentar/versionar o script de importação.
+> 📌 **Origem dos bairros:** as fronteiras vieram do **IBGE** em **SIRGAS 2000 (EPSG:4674)** e foram
+> **reprojetadas para WGS84 (4326)** com as funções do PostGIS na importação — por isso todas as
+> geometrias no banco já estão em 4326. As tabelas de staging `bairros_raw`/`staging_bairros_sc`
+> são resíduos desse ETL. Recomenda-se versionar o script de importação para registrar o passo de
+> reprojeção.
 
 ## 7.4 Integridade referencial (ações de FK confirmadas no DDL)
 
@@ -264,5 +326,5 @@ geometry(MultiPolygon,4326)`, `neighborhoods.center_point geometry(Point,4326)`.
 > (`pg_restore --schema-only`). Em particular: `occurrences.neighborhood_id` é de fato
 > **`ON DELETE SET NULL`**, e `category_id`/`subcategory_id` são **`RESTRICT`**.
 >
-> **Recomendação (R-10):** versionar esse DDL em `db/schema.sql` (sem as tabelas de staging) para
+> **Recomendação (R-09):** versionar esse DDL em `db/schema.sql` (sem as tabelas de staging) para
 > tornar as garantias auditáveis sem depender do dump binário.

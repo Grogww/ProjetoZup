@@ -1,9 +1,9 @@
 # 1. Regras de Negócio
 
 > Cada regra diz **o que** impõe, **por que** existe e **onde** está implementada (arquivo/função).
-> As regras foram extraídas de `src/services/`, `src/controllers/`, `src/middlewares/` e das
-> funções PostGIS dos `src/models/`. Onde o código não confirma uma regra prevista no modelo de
-> negócio, há um bloco `⚠️ A confirmar`.
+> As regras refletem o comportamento real de `src/services/`, `src/controllers/`, `src/middlewares/`
+> e das funções PostGIS dos `src/models/`. Regras ainda planejadas (não implementadas nesta etapa)
+> são marcadas com *(Roadmap)* e detalhadas em [Plano de Projeto](./03-plano-de-projeto.md).
 
 ## Índice de regras
 
@@ -18,14 +18,13 @@
 | RN-07 | Carimbo automático de `resolved_at` / `closed_at` | `models/occurrencesModel.js` |
 | RN-08 | Reabertura / recorrência encadeada | `services/occurrencesService.js`, `models/occurrenceReopensModel.js` |
 | RN-09 | Janela de edição da ocorrência | `utils/occurrenceEditWindow.js`, `services/occurrencesService.js` |
-| RN-10 | Autorização de edição (autor ou admin) | `services/occurrencesService.js` |
+| RN-10 | Autorização de edição e exclusão (autor ou admin) | `services/occurrencesService.js` |
 | RN-11 | Votação (avaliações) e recálculo de score | `services/evaluationsService.js` |
 | RN-12 | Bloqueio de voto em ocorrência fechada | `services/evaluationsService.js` |
 | RN-13 | Integridade de mídias (allowlist, limites, CASCADE) | `config/storage.js`, `middlewares/upload.js`, `services/occurrenceMediaService.js` |
 | RN-14 | Privacidade dos dados do cidadão (sanitização nas respostas) | `services/authService.js`, `utils/cpf.js` |
 | RN-15 | Coerência categoria ↔ subcategoria | `services/occurrencesService.js` |
-| RN-16 | Integridade referencial / operações destrutivas | schema (`db/`) |
-| RN-17 | *(Roadmap)* Validação comunitária por elegibilidade | ⚠️ não implementada |
+| RN-16 | *(Roadmap)* Relevância e priorização por votação | `services/evaluationsService.js` |
 
 ---
 
@@ -72,11 +71,12 @@ cidadão escolha o bairro manualmente.
 determinismo sobre divisas compartilhadas). A mesma base atende `GET /neighborhoods/locate`
 (`neighborhoodsController.locate`).
 
-> ⚠️ **A confirmar (divergência com o modelo de negócio):** o guia descreve geofencing como uma
-> **restrição** que impede marcações fora do território de Videira. No código atual o geofencing
-> **não bloqueia** a criação fora do município — apenas **deriva** o bairro (e deixa `null` fora
-> dos polígonos). Não há validação que rejeite uma ocorrência fora dos limites municipais. Caso
-> o bloqueio seja um requisito, ele precisa ser implementado (ver [Roadmap](./03-plano-de-projeto.md)).
+> 📌 **Geofencing hoje deriva, ainda não restringe.** Nesta etapa o geofencing apenas **deriva**
+> o bairro a partir do ponto (e deixa `null` quando o ponto cai fora dos polígonos cadastrados);
+> ele **não bloqueia** o registro fora dos limites de Videira. Essa decisão é intencional para a
+> fase de **testes e visualização** — permite exercitar o fluxo com pontos de qualquer origem. A
+> **restrição oficial** ao território municipal (rejeitar pontos fora do município) será adicionada
+> em uma etapa posterior (ver [Roadmap](./03-plano-de-projeto.md)).
 
 ---
 
@@ -158,18 +158,20 @@ stateDiagram-v2
     closed --> [*]
 
     note right of awaiting_validation
-        Validação comunitária (RN-17) é prevista
-        para este estado, mas ⚠️ ainda não implementada:
-        hoje qualquer usuário autenticado dispara a transição.
+        A relevância por votação (RN-16) servirá
+        de base para promover esta etapa; a lógica
+        de promoção automática ainda será implementada.
     end note
 ```
 
-> ⚠️ **A confirmar — quem dispara cada transição:** o modelo de negócio prevê que a **comunidade**
-> conduz `awaiting_validation → validated` / `resolution_validated|rejected` e que o **órgão/admin**
-> conduz os estados operacionais (`in_analysis → in_progress → resolved`). **No código atual,
-> qualquer usuário autenticado pode disparar qualquer transição** — a rota
-> `PATCH /occurrences/:id/status` exige apenas `auth`, sem `requireRole`. A segregação por papel é
-> roadmap (ver [Perfis e Permissões](./04-perfis-e-permissoes.md) e [Roadmap](./03-plano-de-projeto.md)).
+> 📌 **Sobre quem dispara cada transição.** A máquina de estados deixa **todas as transições
+> válidas disponíveis** a qualquer usuário autenticado nesta etapa — a rota
+> `PATCH /occurrences/:id/status` exige apenas `auth`. Isso é proposital enquanto o módulo
+> principal (registro público e comunidade) amadurece: facilita exercitar o ciclo de vida completo
+> em testes. A segregação por papel — comunidade promovendo a validação e **órgão/admin** conduzindo
+> os estados operacionais (`in_analysis → in_progress → resolved`) — será aplicada à medida que o
+> grupo do papel `agent` evoluir (ver [Perfis e Permissões](./04-perfis-e-permissoes.md) e
+> [Roadmap](./03-plano-de-projeto.md)).
 
 ---
 
@@ -245,18 +247,19 @@ chamado em `services/occurrencesService.js → updateOccurrence` e no serviço d
 
 ---
 
-## RN-10 — Autorização de edição (autor ou admin)
+## RN-10 — Autorização de edição e exclusão (autor ou admin)
 
-**O que:** apenas o **autor** da ocorrência ou um **admin** pode editar campos/mídias.
+**O que:** apenas o **autor** da ocorrência ou um **admin** pode editar campos/mídias **ou
+excluir** a ocorrência. O autor só pode editar/excluir **dentro da janela de 24 h** (RN-09); o
+admin não tem essa restrição de prazo.
 
-**Por que:** preserva a autoria do relato.
+**Por que:** preserva a autoria do relato e impede que terceiros removam registros alheios,
+mantendo a confiabilidade do acompanhamento.
 
-**Onde:** `services/occurrencesService.js → assertCanEdit` (`FORBIDDEN` → 403).
-
-> ⚠️ **A confirmar — exclusão sem checagem de autoria:** `DELETE /occurrences/:id` exige apenas
-> `auth` e **não** chama `assertCanEdit` nem `requireRole` — qualquer usuário autenticado pode
-> **excluir qualquer ocorrência**. Isso é inconsistente com RN-10 (edição restrita) e está
-> listado como correção no [Roadmap](./03-plano-de-projeto.md).
+**Onde:** `services/occurrencesService.js → assertCanEdit` (edição) e `deleteOccurrence`
+(exclusão). Ambos retornam **403 `FORBIDDEN`** para quem não é autor nem admin; a edição/exclusão
+do autor fora do prazo retorna **403 `EDIT_WINDOW_EXPIRED`**. A exclusão também responde **409
+`OCCURRENCE_IN_USE`** quando a ocorrência ainda é referenciada por outros registros.
 
 ---
 
@@ -266,16 +269,18 @@ chamado em `services/occurrencesService.js → updateOccurrence` e no serviço d
 no mesmo sentido é idempotente; votar no sentido oposto **troca** o voto. `upvote_count`,
 `downvote_count` e `score = upvotes − downvotes` são **recalculados na mesma transação**.
 
-**Por que:** indicador de relevância/apoio da comunidade a uma ocorrência, consistente sob
-concorrência.
+**Por que:** o voto mede a **relevância** de um problema para a comunidade — quantas pessoas são
+afetadas e o consideram importante. Após a ocorrência ser validada (deixar de ser apenas um relato
+isolado), essa relevância passa a indicar a **prioridade** de atendimento: quanto maior o `score`,
+mais alta a demanda na fila. O `score` é, portanto, a **base do sistema de priorização**.
 
 **Onde:** `services/evaluationsService.js` (`voteOnOccurrence`, `removeUserVote`,
 `recomputeOccurrenceCounts`; trava a ocorrência com `FOR UPDATE`). Unicidade
 usuário×ocorrência garantida no schema de `evaluations`.
 
-> ⚠️ **A confirmar (divergência):** o modelo de negócio prevê que a votação **prioriza demandas**.
-> Hoje o `score` é apenas exibido/contabilizado; **não há fila de priorização automática** nem
-> ordenação por score nos endpoints de listagem (que ordenam por `created_at DESC`).
+> 📌 **Priorização ainda não automatizada.** Hoje o `score` é calculado e exibido, mas os endpoints
+> de listagem ainda ordenam por `created_at DESC` — **não há fila/ordenação automática por
+> relevância**. A priorização orientada pelo `score` (RN-16) será implementada em etapa futura.
 
 ---
 
@@ -334,45 +339,29 @@ necessário (`***.***.789-**`). Os endpoints públicos de analytics expõem **ap
 
 ---
 
-## RN-16 — Integridade referencial e operações destrutivas
+## RN-16 *(Roadmap)* — Relevância e priorização por votação
 
-**O que:** FKs sensíveis governam o comportamento em deleções. Em especial, a remoção de uma
-ocorrência apaga em **CASCADE** suas mídias (`occurrence_media`); reimportações de bairros devem
-ser **aditivas** para não nulificar/órfãos referências de ocorrências.
+**O que:** o engajamento da comunidade por votos (RN-11) servirá de base para dois mecanismos
+ainda a implementar:
 
-**Por que:** evitar perda silenciosa de vínculos geográficos e registros órfãos.
+- **Validação por relevância:** em vez de uma validação comunitária por elegibilidade/quórum de
+  validadores, a promoção de uma ocorrência (`awaiting_validation → validated`) usará a **relevância
+  apurada por upvotes e downvotes**. Ao ultrapassar uma **taxa aceitável** de apoio, a ocorrência é
+  considerada validada.
+- **Priorização:** o `score` (upvotes − downvotes) das ocorrências já validadas definirá a **ordem
+  de prioridade** de atendimento (fila/ordenação por relevância).
 
-**Onde:** schema restaurado de `db/init/zup_backup.backup` — DDL **verificado** via
-`pg_restore --schema-only`. Ações de FK confirmadas (tabela completa em
-[Modelo de Dados §7.4](./07-modelo-de-dados.md)):
+**Por que:** aproveita um sinal que o sistema já coleta de forma consistente (o voto) para refletir
+o real interesse da população, sem depender de um papel "Validador" e de regras de elegibilidade
+por bairro/adjacência — simplificando o modelo originalmente previsto.
 
-- ✅ **`occurrences.neighborhood_id` → `ON DELETE SET NULL`** — confirma a regra: reimportações de
-  bairros **devem ser aditivas** (uma remoção destrutiva zera o vínculo das ocorrências).
-- ✅ `occurrences.category_id` / `subcategory_id` → **`RESTRICT`** (origem do **409** ao excluir
-  categoria em uso).
-- ✅ `occurrence_media`, `evaluations`, `occurrence_status_history` (occurrence) → **`CASCADE`**.
-- ✅ `occurrences.author_id` → **`CASCADE`** (excluir um usuário apaga suas ocorrências — atenção em
-  operações destrutivas de usuários).
+**Estado no código atual:** a votação e o cálculo de `score` **já funcionam** (RN-11), mas a
+**lógica que liga relevância → validação → priorização ainda não foi implementada**: a transição
+`awaiting_validation → validated` continua livre (ver RN-05) e as listagens ordenam por
+`created_at DESC`. Os parâmetros (taxa de aprovação para validar, fórmula da fila de prioridade)
+serão definidos e implementados sobre a base de votos já existente (ver
+[Roadmap](./03-plano-de-projeto.md)).
 
-> **Recomendação (R-10):** versionar o DDL em texto (`db/schema.sql`, sem as tabelas de staging)
-> para fixar e auditar essas constraints sem depender do dump binário — ver
-> [Roadmap](./03-plano-de-projeto.md).
-
----
-
-## RN-17 *(Roadmap)* — Validação comunitária por elegibilidade
-
-> ⚠️ **A confirmar / não implementada.** O modelo de negócio do ZUP prevê:
->
-> - **Elegibilidade:** uma ocorrência em `awaiting_validation` seria confirmada por **cidadãos
->   elegíveis do mesmo bairro/região** antes de avançar.
-> - **Seleção de validadores:** baseada no bairro e em **adjacência** (`neighborhood_adjacency`).
-> - **Quórum:** número mínimo de confirmações para promover `awaiting_validation → validated`.
->
-> **Estado no código atual:** a **modelagem de dados da adjacência já existe** — a tabela
-> `neighborhood_adjacency` está no schema (PK composta `(neighborhood_id, neighbor_id)`, CHECK de
-> não-reflexividade e FKs `CASCADE`), porém **nenhum código a consulta**. **Falta toda a lógica
-> de aplicação:** não há papel "Validador", nem critério de elegibilidade, nem contagem de quórum,
-> nem uso da adjacência. A transição `awaiting_validation → validated` é hoje livre para qualquer
-> autenticado (ver RN-05). Os parâmetros desta regra (raio/adjacência, quórum, critério de
-> elegibilidade) precisam ser definidos pelo autor e implementados sobre a estrutura já existente.
+> **Nota:** a tabela `neighborhood_adjacency` (grafo de vizinhança entre bairros) permanece no
+> schema e pode ser reaproveitada futuramente, mas **deixou de ser pré-requisito** desta regra —
+> o caminho adotado é a relevância por votação, não a validação por adjacência.

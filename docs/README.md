@@ -6,17 +6,16 @@ reclamações e solicitações urbanas com geolocalização, contextualizada no 
 organizada conforme o guia de documentação da entrega.
 
 > **Escopo deste repositório:** aqui mora **apenas o backend** (API REST Node.js + Express +
-> PostgreSQL/PostGIS). O frontend (React + react-leaflet) vive em repositório separado — por
-> isso a seção de frontend é majoritariamente especificação de intenção, marcada com
-> `⚠️ A confirmar`.
+> PostgreSQL/PostGIS). O frontend (React + react-leaflet) vive em repositório separado, e a seção
+> de frontend documenta a aplicação correspondente.
 
 ## Como ler
 
-A documentação foi escrita a partir da **leitura do código-fonte** deste repositório
+A documentação descreve o **comportamento real** do código deste repositório
 (`src/controllers`, `src/services`, `src/models`, `src/routes`, `src/middlewares`, `src/utils`,
-`openapi.json` e os scripts de `db/`). Sempre que o código **não** confirma uma regra prevista
-no modelo de negócio, o ponto é sinalizado com `> ⚠️ A confirmar:` em vez de ser afirmado como
-implementado.
+`openapi.json` e os scripts de `db/`). Recursos ainda **planejados** (não implementados nesta
+etapa) aparecem marcados como *(Roadmap)* e são detalhados no
+[Plano de Projeto](./03-plano-de-projeto.md).
 
 Convenção de identificadores para rastreabilidade:
 
@@ -41,17 +40,18 @@ Convenção de identificadores para rastreabilidade:
 > **Como rodar o projeto:** ver o [`README.md`](../README.md) na raiz (pré-requisitos,
 > variáveis de ambiente, seed do banco, Docker, Swagger/OpenAPI).
 
-## Divergências conhecidas entre o modelo de negócio idealizado e o código atual
+## Funcionalidades planejadas (roadmap)
 
-O modelo de negócio do ZUP prevê alguns recursos que **ainda não existem no código**. Eles
-estão documentados como **roadmap** (ver [Plano de Projeto](./03-plano-de-projeto.md)) e
-marcados com `⚠️ A confirmar` ao longo dos documentos. Resumo:
+Alguns recursos do produto **ainda serão implementados**. Estão documentados como **roadmap**
+(ver [Plano de Projeto](./03-plano-de-projeto.md)) e marcados como *(Roadmap)* ao longo dos
+documentos. Resumo do que ainda não está no código:
 
-| Previsto no modelo de negócio | Situação no código |
+| Recurso planejado | Situação atual |
 |---|---|
-| Papel **Validador** (cidadão elegível) | ❌ Não existe. Papéis reais: `citizen`, `agent`, `admin`. |
-| **Validação comunitária** com elegibilidade por bairro / sorteio de validadores | ❌ Lógica não implementada. O estado `awaiting_validation → validated` existe, mas é uma transição livre. |
-| Tabela **`neighborhood_adjacency`** | ✅ **Existe no schema** (PK composta + CHECK + FKs CASCADE), mas **nenhum código a usa** — modelagem pronta, lógica pendente. |
-| **Votação para priorização** de demandas | ⚠️ Há upvote/downvote (`evaluations`) e `score`, mas o score não alimenta nenhuma fila de priorização automática. |
-| **Geofencing como bloqueio** ao território de Videira | ⚠️ O geofencing existe, mas só **deriva o bairro** do ponto; não **bloqueia** ocorrências fora do município. |
-| Papel `agent` com permissões operacionais | ⚠️ O papel existe no enum, mas **nenhuma rota** exige `agent`; ele se comporta como `citizen`. |
+| **Validação por relevância (votação)** | A votação (upvote/downvote → `score`) já funciona; falta a regra que promove a ocorrência ao ultrapassar uma taxa aceitável de apoio. Substitui o antigo papel "Validador" e a validação por adjacência de bairros. |
+| **Priorização por votação** | O `score` é calculado e exibido, mas ainda não ordena uma fila de prioridade — as listagens ordenam por data. |
+| **Geofencing como bloqueio** ao território de Videira | Hoje o geofencing só **deriva o bairro** do ponto (intencional, para testes/visualização); não **bloqueia** ocorrências fora do município. |
+| Papel `agent` com permissões operacionais | O papel existe no enum, mas **nenhuma rota** exige `agent`; será desenvolvido junto ao módulo principal (comunidade/registro público), levando consigo a segregação das transições de status. |
+
+> A tabela `neighborhood_adjacency` permanece no schema (modelagem da adjacência de bairros), mas
+> ficou **reservada** — a validação passou a usar relevância por votação, não adjacência.

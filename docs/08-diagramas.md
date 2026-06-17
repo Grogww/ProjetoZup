@@ -11,7 +11,6 @@ flowchart LR
     Cidadao([Cidadão])
     Agente([Agente / Órgão])
     Admin([Administrador])
-    Validador([Validador ⚠️ roadmap])
 
     subgraph Sistema ZUP
         UC1[Cadastrar-se / autenticar]
@@ -27,21 +26,22 @@ flowchart LR
         UC11[Gerir categorias / subcategorias]
         UC12[Gerir usuários e papéis]
         UC13[Analytics por órgão]
-        UC14[Validar ocorrência da comunidade ⚠️]
+        UC14[Validação por relevância via votação ⚠️ roadmap]
     end
 
     Cidadao --> UC1 & UC2 & UC3 & UC4 & UC5 & UC6 & UC7 & UC8 & UC9
     Agente --> UC10
     Admin --> UC10 & UC11 & UC12 & UC13
     Admin --> UC9
-    Validador -.-> UC14
+    UC5 -. alimenta .-> UC14
 
     UC2 -. include .-> UC3
 ```
 
 > ⚠️ Notas de fidelidade ao código: **UC10** (transição de status) hoje é acessível a **qualquer
 > autenticado** (não apenas Agente/Admin) — ver [Perfis e Permissões](./04-perfis-e-permissoes.md).
-> **UC14** (validação comunitária) e o ator **Validador** são roadmap (RN-17).
+> **UC14** (validação por relevância) é roadmap: será derivada automaticamente da votação dos
+> cidadãos (RN-16), sem um papel "Validador" dedicado.
 
 ## 8.2 Sequência — registrar ocorrência (com anti-duplicidade e geofencing)
 
@@ -95,7 +95,7 @@ sequenceDiagram
     alt transição inválida
         API-->>U: 409 {from,to,allowed}
     else válida
-        API->>DB: BEGIN; UPDATE status (+resolved_at/closed_at); INSERT histórico; COMMIT
+        API->>DB: BEGIN; UPDATE status e carimba resolved_at/closed_at; INSERT histórico; COMMIT
         API-->>U: 200 ocorrência
     end
 
@@ -105,7 +105,7 @@ sequenceDiagram
     alt não finalizada ou já reaberta
         API-->>U: 409 (NOT_REOPENABLE / ALREADY_REOPENED)
     else ok
-        API->>DB: BEGIN; INSERT nova ocorrência (pending, parent/root, reopen_count+1);<br/>INSERT occurrence_reopens; INSERT histórico; COMMIT
+        API->>DB: BEGIN; INSERT nova ocorrência pending encadeada e incrementa reopen_count; INSERT occurrence_reopens; INSERT histórico; COMMIT
         API-->>U: 201 nova ocorrência
     end
 ```

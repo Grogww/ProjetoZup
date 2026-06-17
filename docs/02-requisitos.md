@@ -35,8 +35,8 @@ indica a aderência ao código atual: ✅ implementado · 🟡 parcial · ⛔ ro
 | RF-26 | Tempo de resposta/resolução | Qualquer | Média e mediana, com `group_by` (categoria/bairro/mês) e `sample_size` | `GET /analytics/response-time` | ✅ |
 | RF-27 | Eficiência por órgão | Admin | Backlog, taxa de resolução, reincidência por órgão | `GET /analytics/by-organization` | ✅ |
 | RF-28 | Healthcheck | Qualquer | `GET /health` → `{ status: "ok" }` | `healthRoutes` | ✅ |
-| RF-29 | Validação comunitária por elegibilidade | Validador | Cidadãos elegíveis do bairro confirmam ocorrência por quórum | ⚠️ — | ⛔ |
-| RF-30 | Priorização por votação | Sistema | Score alimenta fila/ordenação de priorização | ⚠️ — | ⛔ |
+| RF-29 | Validação por relevância (votação) | Sistema | Upvotes/downvotes apuram a relevância da ocorrência; ao ultrapassar uma taxa aceitável de apoio, ela é promovida a `validated` | `PATCH /occurrences/:id/status` (futuro) | ⛔ |
+| RF-30 | Priorização por votação | Sistema | `score` (upvotes − downvotes) alimenta a fila/ordenação de prioridade das ocorrências validadas | ⚠️ — | ⛔ |
 | RF-31 | Geofencing como bloqueio municipal | Sistema | Rejeitar ocorrência fora dos limites de Videira | ⚠️ — | ⛔ |
 | RF-32 | Notificações | Cidadão | Notificar autor/seguidores em mudanças de status | ⚠️ — | ⛔ |
 | RF-33 | Painel administrativo de gestão pública (UI) | Órgão/Admin | Tela de triagem e andamento | ⚠️ frontend (repo separado) | ⛔ |
@@ -61,8 +61,8 @@ indica a aderência ao código atual: ✅ implementado · 🟡 parcial · ⛔ ro
 > - Uma transição prevista pela máquina de estados atualiza o status, carimba `resolved_at`/
 >   `closed_at` quando aplicável e registra o histórico.
 > - Uma transição não prevista retorna **409** com `{ from, to, allowed }`.
-> - ⚠️ *A confirmar:* a restrição da transição operacional ao papel `agent`/`admin` é roadmap;
->   hoje qualquer autenticado pode transicionar.
+> - *Roadmap:* nesta etapa qualquer autenticado pode transicionar; a restrição dos estados
+>   operacionais ao papel `agent`/`admin` será aplicada junto à evolução do módulo do agente.
 
 **RF-17 — Reabrir / registrar recorrência**
 > *Como* cidadão, *quero* reabrir um problema que voltou a ocorrer, *para que* fique registrado
@@ -88,7 +88,7 @@ indica a aderência ao código atual: ✅ implementado · 🟡 parcial · ⛔ ro
 | RNF-07 | Segurança | Anti-fraude / anti-duplicidade | CPF com DV validado (RN-01); duplicidade por raio (RN-04). |
 | RNF-08 | Segurança | Upload seguro | Allowlist de mimetypes (sem SVG), limite de tamanho/quantidade, nomes gerados pelo servidor, servir somente leitura. |
 | RNF-09 | Privacidade | Minimização de dados (LGPD) | `sanitize()` remove `password_hash/cpf/tokens`; analytics público só agregados. |
-| RNF-10 | Integridade | Consistência geográfica | SRID 4326 (WGS84) uniforme e **tipado** (`geometry(Point,4326)`, `geometry(MultiPolygon,4326)`); geometria exposta como GeoJSON (`ST_AsGeoJSON`). ⚠️ *A confirmar:* SRID da fonte original (SIRGAS 2000) e o passo de reprojeção do ETL — dados já chegam em 4326 no banco. |
+| RNF-10 | Integridade | Consistência geográfica | SRID 4326 (WGS84) uniforme e **tipado** (`geometry(Point,4326)`, `geometry(MultiPolygon,4326)`); geometria exposta como GeoJSON (`ST_AsGeoJSON`). Os bairros vieram do **IBGE** em **SIRGAS 2000** e foram **reprojetados para SRID 4326** com as funções do PostGIS na importação. |
 | RNF-11 | Integridade | Transações atômicas | `BEGIN/COMMIT/ROLLBACK` em criação, transição de status, voto e reabertura; travas `FOR UPDATE`. |
 | RNF-12 | Integridade | Fuso horário consistente | Sessão do banco em `America/Sao_Paulo`; cálculos de analytics ajustam o fuso. |
 | RNF-13 | Usabilidade | Mensagens de erro padronizadas | JSON `{ error, details? }` com códigos HTTP consistentes (ver [Backend](./05-backend.md)). |
@@ -98,6 +98,7 @@ indica a aderência ao código atual: ✅ implementado · 🟡 parcial · ⛔ ro
 | RNF-17 | Manutenibilidade | Documentação de API | OpenAPI 3.0 versionado (`openapi.json`). |
 | RNF-18 | Configurabilidade | Parâmetros por ambiente | `.env`/`dotenv` para portas, JWT, SMTP, limites de upload, janela de edição, rate limit. |
 
-> **Lacunas de RNF a endereçar:** testes automatizados (não há suíte no repositório),
-> *migrations* versionadas (schema só existe como dump binário), pipeline CI/CD e cache/TTL nos
-> endpoints públicos de analytics. Ver [Plano de Projeto → Roadmap](./03-plano-de-projeto.md).
+> **Próximos passos de RNF (planejados, ainda não implementados):** testes automatizados,
+> *migrations* versionadas (o schema hoje é distribuído como dump binário), pipeline de CI/CD e
+> cache/TTL nos endpoints públicos de analytics. São recursos já priorizados para as próximas
+> iterações — ver [Plano de Projeto → Roadmap](./03-plano-de-projeto.md).

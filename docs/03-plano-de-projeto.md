@@ -23,12 +23,12 @@ repositório separado; aqui está o **backend** (API REST) e a infraestrutura de
 
 ## 3.2 Equipe e responsabilidades
 
-| Frente | Responsabilidade |
-|--------|------------------|
-| Backend / Banco | API Express em camadas, modelagem PostGIS, autenticação, analytics, Docker. |
-| Frontend | Aplicação React, mapa Leaflet/OSM, telas e integração com a API. |
-
-> ⚠️ **A confirmar:** nomes/divisão exata da equipe. Preencher conforme a organização do grupo.
+| Frente | Responsáveis | Responsabilidade |
+|--------|--------------|------------------|
+| Backend / Banco de dados | Eduardo Fritsch Silva | API Express em camadas, modelagem PostGIS, autenticação, analytics, Docker. |
+| Frontend | Lucas Costa e Silva, Eduardo Fritsch Silva | Aplicação React, mapa Leaflet/OSM, telas e integração com a API. |
+| Documentação | Eduardo Fritsch Silva, Benvindo Domingos | Manutenção das regras e requisitos e levantamento do que precisa ser documentado. |
+| Artigo | Eduardo Fritsch Silva, Lucas Costa e Silva | Escrita e adequação do artigo que formaliza o projeto. |
 
 ## 3.3 Gestão de versão
 
@@ -113,9 +113,16 @@ gantt
 - Documentação OpenAPI 3.0 (`openapi.json`).
 
 **Em transição / parcial (🟡):**
-- **Autorização por papel** nas transições e na exclusão: hoje várias ações operacionais exigem
-  apenas `auth` (ver [Perfis e Permissões](./04-perfis-e-permissoes.md)).
+- **Autorização por papel nas transições de status:** hoje a transição exige apenas `auth`; a
+  segregação por papel (`agent`/`admin`) acompanhará a evolução do módulo do agente (ver
+  [Perfis e Permissões](./04-perfis-e-permissoes.md)).
+- **Relevância/priorização por votação** (RN-16): a votação já existe; falta a lógica que liga
+  relevância → validação → fila de prioridade.
 - `mockAuth` (`USE_MOCK_AUTH`) ainda presente como atalho de desenvolvimento.
+
+**Concluído recentemente:**
+- **Exclusão de ocorrência** restrita ao autor (dentro da janela de 24 h) ou admin.
+- **Criação de ocorrência** deixou de aceitar `status` no corpo (toda ocorrência nasce `pending`).
 
 ## 3.7 Roadmap / backlog
 
@@ -123,21 +130,24 @@ Itens decorrentes das divergências e lacunas levantadas na documentação:
 
 | # | Item | Origem |
 |---|------|--------|
-| R-01 | **Validação comunitária** (papel Validador, elegibilidade por bairro, quórum) | RN-17 / RF-29 |
-| R-02 | Algoritmo de seleção de validadores sobre a **`neighborhood_adjacency`** (tabela já existe; falta a lógica) | RN-17 |
-| R-03 | **Segregar transições de status por papel** (`agent`/`admin` nos estados operacionais) | RN-05 / RF-12 |
-| R-04 | **Restringir exclusão** de ocorrência a autor/admin (`DELETE /occurrences/:id`) | RN-10 |
-| R-05 | Restringir, na criação, campos privilegiados (`status`, `assigned_organization_id`) | RF-06 |
-| R-06 | **Geofencing como bloqueio** ao território de Videira | RN-03 / RF-31 |
-| R-07 | **Priorização por votação** (ordenar/filtrar por `score`) | RN-11 / RF-30 |
-| R-08 | **Notificações** ao autor em mudança de status | RF-32 |
-| R-09 | Substituir `mockAuth` por fluxo real em todos os ambientes | F2/F5 |
-| R-10 | **Migrations versionadas** + DDL em texto (`db/schema.sql`) com índices e FKs explícitos | RN-16 / RNF-01 |
-| R-11 | **Testes automatizados** e **pipeline CI/CD** | RNF (lacuna) |
-| R-12 | Versionar o SQL das views de analytics (`db/analytics_views.sql`) | analytics |
-| R-13 | Rate limiter dedicado e cache/TTL nos endpoints públicos de analytics | analytics |
-| R-14 | Remover tabelas de staging (`bairros_raw`, `staging_bairros_sc`) do backup público | §7.2 |
+| R-01 | **Validação por relevância (votação):** promover a ocorrência ao ultrapassar uma taxa aceitável de upvotes/downvotes | RN-16 / RF-29 |
+| R-02 | **Definir a lógica de relevância e priorização** (taxa de validação, fórmula da fila de prioridade) — requer análise mais aprofundada | RN-16 / RN-11 |
+| R-03 | **Segregar transições de status por papel** (`agent`/`admin` nos estados operacionais), junto à evolução do módulo do agente | RN-05 / RF-12 |
+| R-04 | **Fluxo de atribuição de órgão** (`assigned_organization_id`): hoje o campo existe, mas não há ação que defina/troque o órgão responsável | RF-06 |
+| R-05 | **Geofencing como bloqueio** ao território de Videira (hoje só deriva o bairro) | RN-03 / RF-31 |
+| R-06 | **Priorização por votação** (ordenar/filtrar por `score`) | RN-11 / RF-30 |
+| R-07 | **Notificações** ao autor em mudança de status | RF-32 |
+| R-08 | Substituir `mockAuth` por fluxo real em todos os ambientes | F2/F5 |
+| R-09 | **Migrations versionadas** + DDL em texto (`db/schema.sql`) com índices e FKs explícitos | §7.4 / RNF-01 |
+| R-10 | **Testes automatizados** e **pipeline CI/CD** | RNF (próximos passos) |
+| R-11 | Versionar o SQL das views de analytics (`db/analytics_views.sql`) | analytics |
+| R-12 | Rate limiter dedicado e cache/TTL nos endpoints públicos de analytics | analytics |
+| R-13 | Remover tabelas de staging (`bairros_raw`, `staging_bairros_sc`) do backup público | §7.2 |
 
-> A priorização recomendada para a próxima iteração concentra-se em **segurança de autorização**
-> (R-03, R-04, R-05) e **fixação do schema** (R-10), por serem pré-requisitos para confiabilidade
-> da entrega, antes dos recursos comunitários (R-01/R-02).
+> **Já concluídos** (saíram do roadmap): restrição da exclusão de ocorrência a autor/admin com
+> janela de 24 h, e remoção do `status` do corpo de criação.
+>
+> **Validação comunitária e priorização passam a ser feitas por votação.** O modelo original previa
+> um papel "Validador" com elegibilidade por bairro/adjacência; o caminho adotado é mais simples —
+> usar a **relevância apurada pelos votos** (R-01/R-02). Isso ainda requer uma análise mais
+> aprofundada para fechar a lógica (taxa de validação e fórmula de priorização).
