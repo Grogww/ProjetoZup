@@ -229,6 +229,9 @@ const updateStatus = async (req, res, next) => {
     }
     res.json(occurrence);
   } catch (err) {
+    if (err.code === 'FORBIDDEN') {
+      return res.status(403).json({ error: err.message });
+    }
     if (err.code === 'INVALID_STATUS_TRANSITION') {
       return res.status(409).json({ error: err.message, details: err.details });
     }
@@ -496,6 +499,9 @@ const reopen = async (req, res, next) => {
 
     res.status(201).json(occurrence);
   } catch (err) {
+    if (err.code === 'FORBIDDEN') {
+      return res.status(403).json({ error: err.message });
+    }
     if (err.code === 'OCCURRENCE_NOT_FOUND') {
       return res.status(404).json({ error: err.message });
     }

@@ -156,6 +156,8 @@ const updateOccurrenceStatus = async (id, status, { user } = {}) => {
   const existing = await occurrencesModel.findById(id);
   if (!existing) return null;
 
+  assertCanManageLifecycle(existing, user, 'change its status');
+
   const allowed = STATUS_TRANSITIONS[existing.status] || [];
   if (!allowed.includes(status)) {
     const err = new Error(
@@ -186,6 +188,21 @@ const updateOccurrenceStatus = async (id, status, { user } = {}) => {
     throw err;
   } finally {
     client.release();
+  }
+};
+
+// Autorização das ações de ciclo de vida (mudança de status e reabertura):
+// permitido para órgãos (agent), admins ou o cidadão autor da ocorrência.
+const assertCanManageLifecycle = (occurrence, user, action) => {
+  const isAuthor = user && occurrence.author_id === user.id;
+  const isAdmin = user && user.role === 'admin';
+  const isAgent = user && user.role === 'agent';
+  if (!isAuthor && !isAdmin && !isAgent) {
+    const err = new Error(
+      `Only the occurrence author, an agency or an admin can ${action}`
+    );
+    err.code = 'FORBIDDEN';
+    throw err;
   }
 };
 
@@ -273,6 +290,7 @@ const reopenOccurrence = async ({ occurrenceId, user, reason, overrides = {} }) 
               subcategory_id,
               neighborhood_id,
               status,
+              author_id,
               reopen_count,
               root_occurrence_id
          FROM occurrences
@@ -286,6 +304,8 @@ const reopenOccurrence = async ({ occurrenceId, user, reason, overrides = {} }) 
       err.code = 'OCCURRENCE_NOT_FOUND';
       throw err;
     }
+
+    assertCanManageLifecycle(original, user, 'reopen it');
 
     if (!FINALIZED_STATUSES.includes(original.status)) {
       const err = new Error('Only resolved or closed occurrences can be reopened');
